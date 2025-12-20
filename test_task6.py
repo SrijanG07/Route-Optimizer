@@ -26,7 +26,7 @@ def test_genetic_vs_greedy():
     print("\n🔵 Running Greedy (Nearest Neighbor)...")
     greedy_result = optimize_route(start, destinations, priorities, use_genetic=False)
     
-    print(f"   Route: {' → '.join(greedy_result['route'][:3])} ... {greedy_result['route'][-1]}")
+    print(f"   Route: {' → '.join(greedy_result['route'])}")
     print(f"   Distance: {greedy_result['total_distance']} km")
     print(f"   Savings: {greedy_result['distance_saved']} km ({greedy_result['improvement_percentage']}%)")
     print(f"   Time: {greedy_result['execution_time_ms']} ms")
@@ -41,7 +41,7 @@ def test_genetic_vs_greedy():
         priority_penalty=1000.0
     )
     
-    print(f"   Route: {' → '.join(ai_result['route'][:3])} ... {ai_result['route'][-1]}")
+    print(f"   Route: {' → '.join(ai_result['route'])}")
     print(f"   Distance: {ai_result['total_distance']} km")
     print(f"   Savings: {ai_result['distance_saved']} km ({ai_result['improvement_percentage']}%)")
     print(f"   Time: {ai_result['execution_time_ms']} ms")
@@ -212,7 +212,7 @@ def test_scalability_with_ai():
     )
     exec_time = (time.time() - start_time) * 1000
     
-    print(f"\n   ✅ Route: {' → '.join(result['route'][:3])} ... {result['route'][-2]} → {result['route'][-1]}")
+    print(f"\n   ✅ Full Route: {' → '.join(result['route'])}")
     print(f"   Total Cities: {len(result['route'])}")
     print(f"   Distance: {result['total_distance']} km")
     print(f"   Baseline: {result['baseline_distance']} km")

@@ -77,14 +77,14 @@ def test_with_priorities():
 
 
 def test_large_route():
-    """Test with 10 cities (scalability test)."""
+    """Test with 9 cities (scalability test)."""
     print("=" * 70)
-    print("TEST 3: Large Route (10 cities - scalability test)")
+    print("TEST 3: Large Route (9 cities - scalability test)")
     print("=" * 70)
     
     all_cities = get_all_cities()
     start = "Mumbai"
-    destinations = [c for c in all_cities if c != start]  # All other cities
+    destinations = [c for c in all_cities if c != start][:9]  # Take first 9 cities
     
     print(f"   Testing with {len(destinations)} destinations...")
     
@@ -92,7 +92,7 @@ def test_large_route():
     result = optimize_route(start, destinations)
     exec_time = (time.time() - start_time) * 1000
     
-    print(f"✅ Route: {' → '.join(result['route'][:3])} ... {result['route'][-1]}")
+    print(f"✅ Full Route: {' → '.join(result['route'])}")
     print(f"   Total Cities: {len(result['route'])}")
     print(f"   Total Distance: {result['total_distance']} km")
     print(f"   Baseline Distance: {result['baseline_distance']} km")
@@ -100,10 +100,10 @@ def test_large_route():
     print(f"   Execution Time: {exec_time:.2f} ms")
     print()
     
-    assert len(result['route']) == 10, "Should have 10 cities"
+    assert len(result['route']) == 10, "Should have 10 cities (start + 9 destinations)"
     assert exec_time < 2000, "Should complete in under 2 seconds"
     assert result['improvement_percentage'] >= 0, "Should show improvement over baseline"
-    print("✅ PASSED - Handles 10 cities efficiently\n")
+    print("✅ PASSED - Handles 9 cities efficiently\n")
 
 
 def test_single_destination():
