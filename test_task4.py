@@ -1,14 +1,18 @@
-from utils.distance import build_distance_matrix
+from utils.distance  import build_distance_matrix, calculate_duration
 
-# Test with 4 cities (Satisfies the 3-5 city requirement)
-test_cities = ["Mumbai", "Pune", "Bangalore", "Hyderabad"]
+# 1. Select 4 cities for the test case
+test_cities = ["Mumbai", "Delhi", "Bangalore", "Chennai"]
 
-print("--- TASK 4: DISTANCE ENGINE TEST ---")
+# 2. Generate the Matrix
+print("--- TASK 4: DISTANCE MATRIX TEST ---")
 matrix = build_distance_matrix(test_cities)
 
-for city, targets in matrix.items():
-    print(f"\nDistances from {city}:")
-    for target, dist in targets.items():
-        print(f" -> {target}: {dist} km")
+# 3. Print Results with Time Estimations
+for start_city in test_cities:
+    for end_city in test_cities:
+        if start_city != end_city:
+            dist = matrix[start_city][end_city]
+            time = calculate_duration(dist)
+            print(f"{start_city} -> {end_city}: {dist} km (~{time} hours)")
 
-print("\n✅ Task 4 Deliverable: Working distance-time calculator verified.")
+print("\n✅ Task 4 Deliverable: Distance-Time Engine verified.")
