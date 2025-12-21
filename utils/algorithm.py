@@ -16,15 +16,27 @@ WHY AI OPTIMIZATION?
 import random
 import time
 from typing import List, Optional, Dict, Tuple
-from .distance import build_distance_matrix
+from .distance import build_distance_matrix, calculate_distance
 
 # Internal AI optimization parameters (not exposed to API)
 _AI_CONFIG = {
     "population_size": 40,
     "generations": 80,
     "mutation_rate": 0.15,
-    "priority_penalty": 1000.0
+    "priority_penalty": 5000.0  # High penalty to enforce priority order
 }
+
+
+def calculate_total_distance(route: List[str]) -> float:
+    """
+    Calculate total distance of a route in km.
+    Public helper used by main.py for baseline comparisons.
+    """
+    total = 0.0
+    for i in range(len(route) - 1):
+        # Use cached distance calculation
+        total += calculate_distance(route[i], route[i+1])
+    return round(total, 2)
 
 
 def optimize_route(
@@ -58,21 +70,26 @@ def optimize_route(
     """
     start_time = time.time()
     
+    # Use time-based seed for exploration (allows different results per run)
+    # But use same seed within single optimization for consistency
+    random.seed(int(time.time() * 1000) % 10000)
+    
     # ===== STEP 1: PREPARE DATA =====
     # Build distance matrix for O(1) distance lookups
     all_cities = [start] + destinations
     matrix = build_distance_matrix(all_cities)
     
     # ===== STEP 2: BASELINE (for comparison) =====
-    # Calculate distance if we went in INPUT ORDER (shows improvement)
-    # Using input order instead of random ensures consistent test results
-    baseline_route = [start] + destinations  # Input order baseline
+    # Calculate distance for RANDOM ORDER baseline (fair comparison)
+    baseline_destinations = destinations.copy()
+    random.shuffle(baseline_destinations)
+    baseline_route = [start] + baseline_destinations
     baseline_dist = _calculate_total_distance(baseline_route, matrix)
     
     # ===== STEP 3: CHOOSE ALGORITHM (AI or Greedy) =====
     if use_ai:
         # AI APPROACH: Evolutionary Optimization (parameters locked internally)
-        optimized_route, ga_metrics = _genetic_algorithm(
+        ai_route, ga_metrics = _genetic_algorithm(
             start=start,
             destinations=destinations,
             matrix=matrix,
@@ -82,7 +99,29 @@ def optimize_route(
             mutation_rate=_AI_CONFIG["mutation_rate"],
             priority_penalty=_AI_CONFIG["priority_penalty"]
         )
-        algorithm_name = "AI Evolutionary Optimizer"
+        
+        # CRITICAL: Calculate greedy baseline for comparison
+        # Greedy ALWAYS uses simple nearest neighbor (no priority grouping)
+        # This ensures fair comparison: GA (with priorities) vs simple greedy (without)
+        greedy_route = [start] + _nearest_neighbor(start, destinations, matrix)
+        
+        # Compare AI vs Greedy - use better result
+        ai_distance = _calculate_total_distance(ai_route, matrix)
+        greedy_distance = _calculate_total_distance(greedy_route, matrix)
+        
+        if ai_distance <= greedy_distance:
+            optimized_route = ai_route
+            algorithm_name = "Evolutionary Optimizer"
+            ga_metrics["used_ai"] = True
+            # Store greedy distance for comparison display
+            ga_metrics["greedy_distance"] = greedy_distance
+        else:
+            # Fallback to greedy if AI is worse (should be rare with fixed seed)
+            optimized_route = greedy_route
+            algorithm_name = "Evolutionary Optimizer (Greedy Fallback)"
+            ga_metrics["used_ai"] = False
+            ga_metrics["fallback_reason"] = f"AI distance ({ai_distance:.2f}) > Greedy ({greedy_distance:.2f})"
+            ga_metrics["greedy_distance"] = greedy_distance
     else:
         # GREEDY APPROACH: Nearest Neighbor
         if priorities:
@@ -116,7 +155,7 @@ def optimize_route(
         "route": optimized_route,
         "total_distance": round(optimized_dist, 2),
         "baseline_distance": round(baseline_dist, 2),
-        "distance_saved": savings,
+        "distance_saved": round(savings, 2),
         "improvement_percentage": improvement_pct,
         "execution_time_ms": round(exec_time, 2),
         "algorithm": algorithm_name,
@@ -166,6 +205,64 @@ def _nearest_neighbor(start: str, destinations: List[str], matrix: Dict) -> List
         current_city = next_city  # Move to the city we just visited
     
     return route
+
+
+def two_opt_optimize(route: List[str], matrix: Dict, max_iterations: int = 100) -> Tuple[List[str], int]:
+    """
+    2-Opt local search optimization algorithm.
+    
+    Iteratively improves route by swapping edge pairs to eliminate route crossings.
+    Continues until no improvement found or max iterations reached.
+    
+    Algorithm:
+    1. For each pair of edges (i, i+1) and (j, j+1)
+    2. Try reversing the segment between them
+    3. If total distance decreases, keep the new route
+    4. Repeat until no improvements found
+    
+    Time Complexity: O(n^2) per iteration, typically 10-50 iterations
+    
+    Args:
+        route: Initial route to optimize (must start with origin city)
+        matrix: Distance matrix for O(1) distance lookups
+        max_iterations: Maximum optimization iterations (default: 100)
+    
+    Returns:
+        (optimized_route, iterations_used)
+    
+    Example:
+        >>> route = ["Mumbai", "Delhi", "Pune", "Bangalore"]
+        >>> optimized, iters = two_opt_optimize(route, distance_matrix)
+        >>> print(f"Improved route in {iters} iterations")
+    """
+    improved = True
+    iterations = 0
+    best_route = route.copy()
+    best_distance = _calculate_total_distance(best_route, matrix)
+    
+    while improved and iterations < max_iterations:
+        improved = False
+        iterations += 1
+        
+        # Try all possible edge swaps
+        for i in range(1, len(best_route) - 2):
+            for j in range(i + 1, len(best_route)):
+                # Create new route by reversing segment [i:j]
+                # This swaps edges (i-1, i) + (j-1, j) with (i-1, j-1) + (i, j)
+                new_route = best_route[:i] + best_route[i:j][::-1] + best_route[j:]
+                new_distance = _calculate_total_distance(new_route, matrix)
+                
+                # Keep improvement
+                if new_distance < best_distance:
+                    best_route = new_route
+                    best_distance = new_distance
+                    improved = True
+                    break  # Restart from beginning with new route
+            
+            if improved:
+                break  # Found improvement, restart outer loop
+    
+    return best_route, iterations
 
 
 def _group_by_priority(destinations: List[str], priorities: Dict[str, int]) -> Dict[int, List[str]]:
@@ -262,8 +359,8 @@ def _genetic_algorithm(
     Returns:
         (best_route, metrics_dict)
     """
-    # Initialize population with random routes
-    population = _create_initial_population(start, destinations, population_size)
+    # Initialize population with priority-aware routes if priorities exist
+    population = _create_initial_population(start, destinations, population_size, priorities)
     
     initial_fitness = _calculate_fitness(population[0], matrix, priorities, priority_penalty, start)
     best_route = None
@@ -330,17 +427,38 @@ def _genetic_algorithm(
     return best_route, metrics
 
 
-def _create_initial_population(start: str, destinations: List[str], size: int) -> List[List[str]]:
+def _create_initial_population(start: str, destinations: List[str], size: int, priorities: Optional[Dict[str, int]] = None) -> List[List[str]]:
     """
-    Create initial population of random routes.
-    Each route starts with 'start' city.
+    Create initial population with mix of random and priority-aware routes.
+    If priorities exist, 50% of population respects priority order.
     """
     population = []
-    for _ in range(size):
+    
+    # If priorities exist, seed population with priority-aware routes
+    if priorities:
+        priority_aware_count = size // 2  # 50% priority-aware
+        
+        # Create priority-aware routes
+        for _ in range(priority_aware_count):
+            priority_groups = _group_by_priority(destinations, priorities)
+            route = [start]
+            
+            # Add cities in priority order, but shuffle within each group
+            for priority_level in [1, 2, 3]:
+                if priority_level in priority_groups:
+                    group = priority_groups[priority_level].copy()
+                    random.shuffle(group)
+                    route.extend(group)
+            
+            population.append(route)
+    
+    # Fill rest with random routes
+    while len(population) < size:
         shuffled = destinations.copy()
         random.shuffle(shuffled)
         route = [start] + shuffled
         population.append(route)
+    
     return population
 
 

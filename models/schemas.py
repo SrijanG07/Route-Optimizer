@@ -1,12 +1,37 @@
-"""
-Pydantic data models for Route Optimization API.
-Task 3: Define City, Route, DeliveryRequest models with priority levels and scalability.
-"""
+"""Pydantic schemas for API request/response validation."""
 
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, List
 from datetime import datetime
 
+
+# ========== Recalculation Request Models ==========
+
+class RecalculateRequest(BaseModel):
+    """Request model for route recalculation."""
+    current_position: str = Field(..., description="Current position/city")
+    remaining_destinations: List[str] = Field(..., description="Remaining cities to visit")
+    priorities: Optional[Dict[str, int]] = Field(None, description="Priority mapping for cities")
+    use_ai: bool = Field(False, description="Use AI optimization")
+
+
+class AddCitiesRequest(BaseModel):
+    """Request model for adding cities to route."""
+    current_position: str = Field(..., description="Current position/city")
+    existing_route: List[str] = Field(..., description="Current route")
+    new_cities: List[str] = Field(..., description="Cities to add")
+    priorities: Optional[Dict[str, int]] = Field(None, description="Priority mapping")
+    use_ai: bool = Field(False, description="Use AI optimization")
+
+
+class RemoveCitiesRequest(BaseModel):
+    """Request model for removing cities from route."""
+    current_position: str = Field(..., description="Current position/city")
+    existing_route: List[str] = Field(..., description="Current route")
+    cities_to_remove: List[str] = Field(..., description="Cities to remove")
+
+
+# ========== Main Optimization Models ==========
 
 # ===== INPUT MODELS (What users send TO the API) =====
 
@@ -66,21 +91,10 @@ class OptimizeRequest(BaseModel):
         examples=[{"Bangalore": 1, "Chennai": 2, "Pune": 3}]
     )
     
-    timeWindows: Optional[Dict[str, Dict[str, str]]] = Field(
-        default=None,
-        description="Delivery time windows (Day 2 feature - optional for MVP)",
-        examples=[{
-            "Bangalore": {
-                "from": "2025-12-21T08:00:00Z",
-                "to": "2025-12-21T14:00:00Z"
-            }
-        }]
-    )
-    
     options: Optional[Dict[str, bool]] = Field(
-        default_factory=lambda: {"improve": False},
-        description="Optimization options: improve=true runs 2-Opt enhancement",
-        examples=[{"improve": True}]
+        default_factory=lambda: {"use_ai": False},
+        description="Optimization options: use_ai=true runs AI optimization",
+        examples=[{"use_ai": True}]
     )
     
     @field_validator('destinations')
@@ -146,6 +160,10 @@ class OptimizationDetails(BaseModel):
     savedDistanceKm: Optional[float] = Field(None, description="Distance saved compared to random/baseline route")
     improvementPercentage: Optional[float] = Field(None, description="Percentage improvement over baseline")
     citiesProcessed: int = Field(..., description="Number of cities in optimization")
+    baselineDistanceKm: Optional[float] = Field(None, description="Baseline (random route) distance for comparison")
+    greedyDistanceKm: Optional[float] = Field(None, description="Greedy algorithm distance for comparison")
+    aiImprovementOverGreedy: Optional[float] = Field(None, description="AI improvement percentage over Greedy")
+    aiSavedOverGreedy: Optional[float] = Field(None, description="Distance saved by AI vs Greedy")
 
 
 class OptimizeResponse(BaseModel):

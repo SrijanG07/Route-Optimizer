@@ -1,5 +1,6 @@
 """
-Distance calculation with geopy + caching + fallback logic.
+Distance calculation using geodesic (great circle) distance.
+For hackathon demo - uses geopy geodesic with haversine fallback.
 """
 
 from functools import lru_cache
@@ -8,11 +9,18 @@ import math
 
 from .cities import get_city_coords
 
+# Track which method is being used globally
+_distance_method = "geodesic"  # Default
+
+
 # LRU Cache: stores last 1000 distance calculations
 @lru_cache(maxsize=1000)
 def calculate_distance(city1: str, city2: str) -> float:
     """
-    Calculate great-circle distance between two cities using Haversine formula.
+    Calculate distance between two cities using geodesic (great circle) distance.
+    
+    Uses geopy for accurate great circle distance calculation.
+    Falls back to Haversine formula if geopy fails.
     
     Args:
         city1: First city name
@@ -26,23 +34,35 @@ def calculate_distance(city1: str, city2: str) -> float:
     
     Example:
         >>> calculate_distance("Mumbai", "Delhi")
-        1153.45
+        1154.50  # Geodesic distance (great circle)
     """
+    global _distance_method
+    
     # Same city = 0 distance
     if city1 == city2:
         return 0.0
     
-    # Try primary method: geopy
+    coords1 = get_city_coords(city1)
+    coords2 = get_city_coords(city2)
+    
+    # Use geopy geodesic (great circle distance)
     try:
-        coords1 = get_city_coords(city1)
-        coords2 = get_city_coords(city2)
         distance = geodesic(coords1, coords2).kilometers
+        _distance_method = "geodesic"
         return round(distance, 2)
     
     except Exception as e:
-        # Fallback to manual Haversine calculation
+        # Final fallback to manual Haversine calculation
         print(f"Warning: Geopy failed ({e}), using fallback Haversine")
+        _distance_method = "haversine"
         return _haversine_distance(city1, city2)
+
+
+def get_distance_method() -> str:
+    """Get the distance calculation method currently being used."""
+    return _distance_method
+
+
 
 
 def _haversine_distance(city1: str, city2: str) -> float:

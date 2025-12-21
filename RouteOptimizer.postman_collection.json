@@ -1,0 +1,250 @@
+{
+	"info": {
+		"_postman_id": "route-optimizer-collection",
+		"name": "AI Route Optimizer API",
+		"description": "Comprehensive API collection for AI-Powered Multi-City Route Optimization System. Includes all endpoints with sample requests for hackathon demo.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "hackathon-2025"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/health",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["health"]
+				},
+				"description": "Check API health status and cache statistics"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Available Cities",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/cities",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "cities"]
+				},
+				"description": "Fetch list of all available cities with coordinates"
+			},
+			"response": []
+		},
+		{
+			"name": "Optimize Route (Greedy)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"start\": \"Mumbai\",\n  \"destinations\": [\"Pune\", \"Bangalore\", \"Chennai\", \"Hyderabad\"],\n  \"priorities\": {\n    \"Pune\": 3,\n    \"Bangalore\": 2,\n    \"Chennai\": 2,\n    \"Hyderabad\": 3\n  },\n  \"options\": {\n    \"use_ai\": false\n  }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/optimize",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "optimize"]
+				},
+				"description": "Optimize route using Nearest Neighbor (Greedy) algorithm"
+			},
+			"response": []
+		},
+		{
+			"name": "Optimize Route (AI - Genetic Algorithm)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"start\": \"Delhi\",\n  \"destinations\": [\n    \"Mumbai\",\n    \"Bangalore\",\n    \"Chennai\",\n    \"Kolkata\",\n    \"Hyderabad\",\n    \"Pune\",\n    \"Ahmedabad\",\n    \"Jaipur\",\n    \"Lucknow\"\n  ],\n  \"priorities\": {\n    \"Bangalore\": 1,\n    \"Chennai\": 1,\n    \"Mumbai\": 2,\n    \"Kolkata\": 2,\n    \"Hyderabad\": 3\n  },\n  \"options\": {\n    \"use_ai\": true\n  }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/optimize",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "optimize"]
+				},
+				"description": "Optimize route using AI-powered Genetic Algorithm (80 generations)"
+			},
+			"response": []
+		},
+		{
+			"name": "Optimize Route (Urgent Priority Demo)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"start\": \"Mumbai\",\n  \"destinations\": [\"Pune\", \"Bangalore\", \"Chennai\", \"Hyderabad\"],\n  \"priorities\": {\n    \"Bangalore\": 1,\n    \"Chennai\": 2,\n    \"Pune\": 3,\n    \"Hyderabad\": 3\n  },\n  \"options\": {\n    \"use_ai\": true\n  }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/optimize",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "optimize"]
+				},
+				"description": "Demo showing priority handling: Bangalore (URGENT) scheduled first"
+			},
+			"response": []
+		},
+		{
+			"name": "Recalculate from Position",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"current_position\": \"Pune\",\n  \"remaining_destinations\": [\"Bangalore\", \"Chennai\", \"Hyderabad\"],\n  \"priorities\": {\n    \"Bangalore\": 1,\n    \"Chennai\": 2,\n    \"Hyderabad\": 3\n  },\n  \"use_ai\": true\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/recalculate",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "recalculate"]
+				},
+				"description": "Recalculate route from current position (driver completed Mumbai → Pune)"
+			},
+			"response": []
+		},
+		{
+			"name": "Add City to Route",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"current_position\": \"Pune\",\n  \"existing_route\": [\"Mumbai\", \"Pune\", \"Bangalore\", \"Chennai\"],\n  \"new_cities\": [\"Indore\"],\n  \"priorities\": {\n    \"Indore\": 1\n  },\n  \"use_ai\": true\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/add-cities",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "add-cities"]
+				},
+				"description": "Add urgent delivery (Indore) to existing route mid-journey"
+			},
+			"response": []
+		},
+		{
+			"name": "Remove City from Route",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"current_position\": \"Pune\",\n  \"existing_route\": [\"Mumbai\", \"Pune\", \"Bangalore\", \"Chennai\", \"Hyderabad\"],\n  \"cities_to_remove\": [\"Chennai\"]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/remove-cities",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "remove-cities"]
+				},
+				"description": "Remove cancelled delivery (Chennai) from route"
+			},
+			"response": []
+		},
+		{
+			"name": "Edge Case: Single Destination",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"start\": \"Mumbai\",\n  \"destinations\": [\"Pune\"],\n  \"options\": {\n    \"use_ai\": true\n  }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/optimize",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "optimize"]
+				},
+				"description": "Test with single destination (trivial route)"
+			},
+			"response": []
+		},
+		{
+			"name": "Edge Case: Maximum Cities",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"start\": \"Delhi\",\n  \"destinations\": [\n    \"Mumbai\",\n    \"Bangalore\",\n    \"Chennai\",\n    \"Kolkata\",\n    \"Hyderabad\",\n    \"Pune\",\n    \"Ahmedabad\",\n    \"Jaipur\",\n    \"Lucknow\",\n    \"Indore\",\n    \"Nagpur\",\n    \"Surat\",\n    \"Kanpur\",\n    \"Bhopal\",\n    \"Visakhapatnam\",\n    \"Patna\",\n    \"Vadodara\"\n  ],\n  \"options\": {\n    \"use_ai\": true\n  }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/optimize",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["api", "optimize"]
+				},
+				"description": "Test with maximum 17 cities (18 total including start)"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RouteOptimizer - Multi-City Route Optimization</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="static/realtime.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">🚀</div>
+            <div>
+                <h1>RouteOptimizer</h1>
+                <span class="tagline">Intelligent Route Optimization</span>
+            </div>
+        </div>
+        <div class="status-badge">
+            <span class="status-dot"></span>
+            System Ready
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Step Indicator -->
+        <div class="steps">
+            <div class="step active" data-step="1">
+                <div class="step-number">1</div>
+                <span>Start City</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="2">
+                <div class="step-number">2</div>
+                <span>Destinations</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="3">
+                <div class="step-number">3</div>
+                <span>Optimize</span>
+            </div>
+        </div>
+
+        <!-- Form Section -->
+        <section class="card form-card">
+            <!-- Step 1: Start City -->
+            <div class="form-step" id="step1">
+                <h2>📍 Select Start City</h2>
+                <p class="hint">Choose where your route begins</p>
+                <input type="text" id="startCitySearch" class="city-search-input"
+                    placeholder="🔍 Type to search cities..." oninput="filterStartCities()">
+                <div class="city-grid" id="startCityGrid"></div>
+            </div>
+
+            <!-- Step 2: Destinations -->
+            <div class="form-step hidden" id="step2">
+                <h2>🎯 Select Destination Cities</h2>
+                <p class="hint">Choose 2-10 cities to visit and set their priorities</p>
+                <input type="text" id="destCitySearch" class="city-search-input"
+                    placeholder="🔍 Type to search cities..." oninput="filterDestCities()">
+                <div class="selected-count">Selected: <span id="destCount">0</span> cities</div>
+
+                <!-- Selected cities with priorities -->
+                <div id="selectedCitiesContainer" class="selected-cities-container"></div>
+
+                <!-- Available cities grid -->
+                <div class="city-grid" id="destCityGrid"></div>
+            </div>
+
+            <!-- Step 3: Optimization -->
+            <div class="form-step hidden" id="step3">
+                <h2>⚡ Optimize Your Route</h2>
+                <p class="hint">Using Genetic Algorithm for best results</p>
+
+                <div
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">🧬 Genetic Algorithm Optimization</h3>
+                    <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">
+                        Our evolutionary optimizer explores thousands of route variations to find the optimal path,
+                        respecting your priority constraints and minimizing total distance.
+                    </p>
+                </div>
+
+                <button class="optimize-btn" id="optimizeBtn" onclick="optimizeRoute()">
+                    <span class="btn-text">🚀 Optimize Route</span>
+                    <span class="btn-loading hidden">
+                        <span class="spinner"></span> Optimizing...
+                    </span>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <div class="nav-buttons">
+                <button class="nav-btn" id="prevBtn" onclick="prevStep()" disabled>← Back</button>
+                <button class="nav-btn primary" id="nextBtn" onclick="nextStep()">Next →</button>
+            </div>
+        </section>
+
+        <!-- Results Section (Hidden initially) -->
+        <section class="card results-card hidden" id="resultsSection">
+            <div class="results-header">
+                <h2>✅ Optimized Route Results</h2>
+                <!-- Google Maps Link -->
+                <div class="maps-link">
+                    <a href="#" id="mapsLink" target="_blank" class="btn-maps">
+                        📍 View in Google Maps
+                    </a>
+                </div>
+            </div>
+
+            <!-- Real-Time Updates Section -->
+            <div class="realtime-section" id="realtimeSection" style="display: none;">
+                <h3>🔄 Real-Time Route Updates</h3>
+                <p class="section-description">Specify your current position, then make changes to recalculate the route
+                </p>
+
+                <!-- Current Position Selector (Shared by all actions) -->
+                <div class="realtime-control"
+                    style="background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; margin-bottom: 1.5rem;">
+                    <label style="color: #3b82f6; font-weight: 600;">📍 Where are you currently?</label>
+                    <select id="currentPosSelect" class="city-select" style="font-weight: bold; border-color: #3b82f6;">
+                        <option value="">Select your current position...</option>
+                    </select>
+                </div>
+
+                <div class="realtime-controls">
+                    <!-- Add City -->
+                    <div class="realtime-control">
+                        <label>Add City Mid-Route</label>
+                        <div class="control-group">
+                            <select id="addCitySelect" class="city-select">
+                                <option value="">Select city to add...</option>
+                            </select>
+                            <button onclick="addCityToRoute()" class="btn-action">
+                                ➕ Add City
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Remove City -->
+                    <div class="realtime-control">
+                        <label>Remove City from Route</label>
+                        <div class="control-group">
+                            <select id="removeCitySelect" class="city-select">
+                                <option value="">Select city to remove...</option>
+                            </select>
+                            <button onclick="removeCityFromRoute()" class="btn-action btn-danger">
+                                ➖ Remove City
+                            </button>
+                        </div>
+                    </div>
+
+
+
+
+                    <!-- Update Priority -->
+                    <div class="realtime-control">
+                        <label>Update City Priority Mid-Route</label>
+                        <div class="control-group">
+                            <select id="updatePriorityCity" class="city-select" style="flex: 1;">
+                                <option value="">Select city...</option>
+                            </select>
+                            <select id="updatePriorityLevel" class="city-select" style="flex: 0.6;">
+                                <option value="1">🔴 Urgent</option>
+                                <option value="2">🟡 Medium</option>
+                                <option value="3">🟢 Low</option>
+                            </select>
+                            <button onclick="updateCityPriorityMidRoute()" class="btn-action"
+                                style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                                ⚡ Update Priority
+                            </button>
+                        </div>
+                    </div>
+
+
+                </div>
+
+                <div class="realtime-status" id="realtimeStatus"></div>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon">📏</div>
+                    <div class="metric-value" id="totalDistance">0</div>
+                    <div class="metric-label">Total Distance (km)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">⏱️</div>
+                    <div class="metric-value" id="estimatedTime">0</div>
+                    <div class="metric-label">Estimated Time (hrs)</div>
+                </div>
+                <div class="metric-card highlight-green">
+                    <div class="metric-icon">💰</div>
+                    <div class="metric-value" id="distanceSaved">0</div>
+                    <div class="metric-label">Distance Saved (km)</div>
+                </div>
+                <div class="metric-card highlight-blue">
+                    <div class="metric-icon">📈</div>
+                    <div class="metric-value" id="improvement">0%</div>
+                    <div class="metric-label">Improvement</div>
+                </div>
+            </div>
+
+            <!-- AI Summary Section -->
+            <div class="ai-summary-section"
+                style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3
+                    style="margin: 0 0 0.75rem 0; color: var(--primary-glow); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🤖</span> AI-Generated Route Summary
+                </h3>
+                <p id="summaryText" class="summary-text"
+                    style="color: var(--text-primary); margin: 0; font-size: 0.95rem; line-height: 1.6;"></p>
+            </div>
+
+            <!-- Route Visualization -->
+            <div class="route-viz">
+                <h3>Route Sequence</h3>
+                <div class="route-path" id="routePath"></div>
+            </div>
+
+            <!-- Collapsible Technical Details -->
+            <div class="technical-section">
+                <button class="tech-toggle-btn" onclick="toggleTechnicalDetails()" id="techToggleBtn">
+                    <span class="toggle-icon">▼</span>
+                    <span class="toggle-text">Show Technical Details</span>
+                </button>
+
+                <div class="tech-details-content hidden" id="techDetailsContent">
+                    <!-- Comparison -->
+                    <div class="comparison" id="comparisonSection">
+                        <div class="compare-item">
+                            <span class="compare-badge greedy">⚡ Greedy</span>
+                            <span class="compare-value" id="greedyDist">0 km</span>
+                        </div>
+                        <div class="compare-vs">vs</div>
+                        <div class="compare-item winner">
+                            <span class="compare-badge ai">🔬 Optimized</span>
+                            <span class="compare-value" id="aiDist">0 km</span>
+                        </div>
+                        <!-- Third comparison item (hidden by default, shown for AI) -->
+                        <div class="compare-vs" id="thirdVs" style="display: none;">→</div>
+                        <div class="compare-item winner" id="thirdItem" style="display: none;">
+                            <span class="compare-badge ai">🚀 AI-Enhanced</span>
+                            <span class="compare-value" id="aiEnhancedDist">0 km</span>
+                        </div>
+                    </div>
+
+                    <!-- Technical Details -->
+                    <div class="tech-details">
+                        <div class="tech-item">
+                            <span class="tech-label">Algorithm</span>
+                            <span class="tech-value" id="algoUsed">-</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Calc Time</span>
+                            <span class="tech-value" id="calcTime">-</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Iterations</span>
+                            <span class="tech-value" id="iterations">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>Built for Hackathon Demo • AI-Powered Logistics</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
