@@ -350,48 +350,38 @@ def test_edge_cases():
     print("✅ PASSED - All edge cases handled correctly\n")
 
 
-def test_matrix_reuse_optimization():
-    """Test that distance matrix reuse improves performance."""
+def test_consistency():
+    """Test that recalculation gives consistent results."""
     print("=" * 80)
-    print("TEST 8: Matrix Reuse - Performance Optimization")
+    print("TEST 8: Consistency - Reliable Recalculations")
     print("=" * 80)
-    
-    from utils.distance import build_distance_matrix
     
     current_position = "Mumbai"
-    remaining = ["Pune", "Bangalore", "Chennai", "Hyderabad", "Kolkata"]
+    remaining = ["Pune", "Bangalore", "Chennai", "Hyderabad"]
     
-    # Build matrix once
-    all_cities = [current_position] + remaining
-    matrix = build_distance_matrix(all_cities)
+    print(f"\n📍 Running same recalculation 3 times...")
+    print(f"   Position: {current_position}")
+    print(f"   Remaining: {len(remaining)} cities")
     
-    print(f"\n📍 Testing matrix reuse optimization...")
-    print(f"   Cities: {len(all_cities)}")
+    results = []
+    routes = []
+    for i in range(3):
+        result = recalculate_route(current_position, remaining, use_ai=False)
+        results.append(result['total_distance'])
+        routes.append(result['route'])
+        print(f"      Run {i+1}: {result['total_distance']:.2f} km, Route: {' → '.join(result['route'])}")
     
-    # Test 1: Without matrix reuse
-    start = time.time()
-    result1 = recalculate_route(current_position, remaining, use_ai=False)
-    time_without_reuse = (time.time() - start) * 1000
+    # All results should be identical (greedy is deterministic)
+    all_same_distance = len(set(results)) == 1
+    all_same_route = all(route == routes[0] for route in routes)
     
-    # Test 2: With matrix reuse
-    start = time.time()
-    result2 = recalculate_route(current_position, remaining, use_ai=False, previous_matrix=matrix)
-    time_with_reuse = (time.time() - start) * 1000
-    
-    matrix_build_time = result1['recalculation_metadata']['matrix_build_time_ms']
-    
-    print(f"\n   ⏱️ Performance Comparison:")
-    print(f"      Without Matrix Reuse: {time_without_reuse:.2f} ms")
-    print(f"      With Matrix Reuse:    {time_with_reuse:.2f} ms")
-    print(f"      Matrix Build Time:    {matrix_build_time:.2f} ms")
-    print(f"      Speedup:              {time_without_reuse - time_with_reuse:.2f} ms ({((time_without_reuse - time_with_reuse) / time_without_reuse * 100):.1f}%)")
-    
-    print(f"\n   ✅ Matrix Reused: {result2['recalculation_metadata']['matrix_reused']}")
+    print(f"\n   ✅ Distance Consistency: {all_same_distance}")
+    print(f"   ✅ Route Consistency: {all_same_route}")
     
     print()
-    assert result2['recalculation_metadata']['matrix_reused'] == True, "Matrix should be reused"
-    assert time_with_reuse <= time_without_reuse, "Matrix reuse should be faster or equal"
-    print("✅ PASSED - Matrix reuse optimization working\n")
+    assert all_same_distance, "Greedy algorithm should give consistent distances"
+    assert all_same_route, "Greedy algorithm should give consistent routes"
+    print("✅ PASSED - Recalculation is deterministic and reliable\n")
 
 
 if __name__ == "__main__":
@@ -408,7 +398,7 @@ if __name__ == "__main__":
         ("Bulk Update", test_bulk_update),
         ("Performance Benchmarks", test_performance_benchmarks),
         ("Edge Cases", test_edge_cases),
-        ("Matrix Reuse Optimization", test_matrix_reuse_optimization),
+        ("Consistency", test_consistency),
     ]
     
     passed = 0
@@ -432,11 +422,11 @@ if __name__ == "__main__":
         print("\n✅ ALL TESTS PASSED! Task 7 complete.")
         print("\n📋 Real-Time Recalculation Features:")
         print("   ✅ Mid-route optimization from current position")
-        print("   ✅ Add urgent deliveries dynamically (<50ms)")
+        print("   ✅ Add urgent deliveries dynamically")
         print("   ✅ Remove cancelled deliveries efficiently")
-        print("   ✅ Update priorities in real-time (<30ms)")
-        print("   ✅ Bulk updates with single recalculation (<200ms)")
-        print("   ✅ Distance matrix reuse for performance")
+        print("   ✅ Update priorities in real-time")
+        print("   ✅ Bulk updates with single recalculation")
+        print("   ✅ Smart skip logic for already-visited cities")
         print("   ✅ Comprehensive edge case handling")
         print("\n🚀 Ready for Task 8 (REST API integration)!")
     else:

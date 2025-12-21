@@ -4,15 +4,15 @@ Handles dynamic changes to routes with optimized recomputation.
 
 FEATURES:
 1. Add/remove cities from active routes
-2. Update priorities without full recalculation
+2. Update priorities and reoptimize remaining route
 3. Resume from current position (mid-route optimization)
-4. Cached distance matrix reuse
-5. Incremental updates when possible
+4. Smart skip logic when changes don't affect future route
+5. Bulk updates with single recalculation
 
-PERFORMANCE TARGETS:
-- Add/remove single city: < 50ms
-- Priority update: < 30ms
-- Bulk changes: < 200ms
+PERFORMANCE NOTES:
+- Optimized for small to medium city sets (10-20 cities)
+- Recalculation avoids already-completed route segments
+- Fast enough for real-time operational use
 """
 
 import time
@@ -26,8 +26,7 @@ def recalculate_route(
     current_position: str,
     remaining_destinations: List[str],
     priorities: Optional[Dict[str, int]] = None,
-    use_ai: bool = False,
-    previous_matrix: Optional[Dict] = None
+    use_ai: bool = False
 ) -> Dict:
     """
     Recalculate route from current position with remaining destinations.
@@ -43,24 +42,13 @@ def recalculate_route(
         remaining_destinations: Cities still to visit
         priorities: Optional priority mapping for remaining cities
         use_ai: Use AI optimization (default: False for speed)
-        previous_matrix: Reuse distance matrix if available (optimization)
     
     Returns:
         Dict with optimized remaining route, distances, and recalculation metrics
     """
     start_time = time.time()
     
-    # Build or reuse distance matrix
-    if previous_matrix:
-        matrix = previous_matrix
-        matrix_time = 0
-    else:
-        matrix_start = time.time()
-        all_cities = [current_position] + remaining_destinations
-        matrix = build_distance_matrix(all_cities)
-        matrix_time = (time.time() - matrix_start) * 1000
-    
-    # Optimize from current position
+    # Optimize from current position (only remaining cities)
     result = optimize_route(
         start=current_position,
         destinations=remaining_destinations,
@@ -74,9 +62,7 @@ def recalculate_route(
     result["recalculation_metadata"] = {
         "current_position": current_position,
         "remaining_cities": len(remaining_destinations),
-        "matrix_build_time_ms": round(matrix_time, 2),
-        "total_recalc_time_ms": round(total_time, 2),
-        "matrix_reused": previous_matrix is not None
+        "total_recalc_time_ms": round(total_time, 2)
     }
     
     return result
