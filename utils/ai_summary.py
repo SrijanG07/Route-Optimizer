@@ -104,15 +104,29 @@ Algorithm Used: {algorithm}{priority_info}{ga_details}
 
 Write a compelling summary that shows the INTELLIGENCE of the genetic algorithm approach."""
 
-        # Generate summary using Gemini (use latest available model)
-        model = genai.GenerativeModel('models/gemini-2.5-flash')
-        response = model.generate_content(prompt)
+        # Try multiple Gemini models (newest to oldest) for compatibility
+        # Most users will have access to gemini-1.5-flash (free tier)
+        models_to_try = [
+            'gemini-1.5-flash',      # Free tier, widely available
+            'gemini-1.5-pro',        # Better quality, may need paid tier
+            'gemini-pro',            # Legacy, very widely available
+        ]
         
-        if response and response.text:
-            return response.text.strip()
-        else:
-            print("Gemini returned empty response, using fallback")
-            return _generate_fallback_summary(result)
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                
+                if response and response.text:
+                    print(f"✅ Generated summary using {model_name}")
+                    return response.text.strip()
+            except Exception as model_error:
+                print(f"⚠️  Model {model_name} failed: {model_error}")
+                continue  # Try next model
+        
+        # All models failed, use fallback
+        print("⚠️  All Gemini models failed, using enhanced fallback")
+        return _generate_fallback_summary(result)
     
     except Exception as e:
         print(f"Gemini API error: {e}")

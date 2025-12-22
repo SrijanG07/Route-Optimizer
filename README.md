@@ -111,7 +111,9 @@ Create a `.env` file in the project root:
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-Get your free API key at: https://makersuite.google.com/app/apikey
+**Get your free API key:** https://makersuite.google.com/app/apikey
+
+> **Note:** The system automatically tries multiple Gemini models (1.5-flash, 1.5-pro, gemini-pro) for compatibility. Works with free tier API keys! If Gemini fails, it falls back to a detailed template-based summary.
 
 ### 3. Run Server
 
