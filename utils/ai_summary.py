@@ -87,29 +87,29 @@ def generate_ai_summary(result: Dict[str, Any]) -> str:
         
         prompt = f"""You are an expert in logistics optimization and genetic algorithms. Generate a comprehensive, professional summary (3-4 sentences) explaining this delivery route optimization.
 
-**Route Details:**
+Route Details:
 Route: {' → '.join(route)}
 Total Distance: {distance:.1f} km
 Distance Saved vs Random Baseline: {savings:.1f} km ({improvement}% improvement)
 Algorithm Used: {algorithm}{priority_info}{ga_details}
 
-**Instructions:**
-1. Explain that this is a **Genetic Algorithm (Evolutionary Optimizer)** solution
-2. Mention it explored **{iterations} generations** of route variations using population-based search
+Instructions:
+1. Explain that this is a Genetic Algorithm (Evolutionary Optimizer) solution
+2. Mention it explored {iterations} generations of route variations using population-based search
 3. Explain how GA is better than greedy: it doesn't just pick nearest neighbor, it evolves multiple solutions and picks the best
 4. If priority violations = 0, emphasize that it PERFECTLY respects priority constraints (Urgent first, then Medium, then Low)
 5. If there's a greedy comparison, highlight the GA's superiority with specific numbers
 6. Use technical but accessible language - this is for a hackathon demo
 7. Be specific about HOW the algorithm worked, not just what it achieved
+8. IMPORTANT: Do not use markdown formatting like ** for bold. Write in plain text only.
 
 Write a compelling summary that shows the INTELLIGENCE of the genetic algorithm approach."""
 
-        # Try multiple Gemini models (newest to oldest) for compatibility
-        # Most users will have access to gemini-1.5-flash (free tier)
+        # Try multiple Gemini models (compatible with google-generativeai package)
         models_to_try = [
-            'gemini-1.5-flash',      # Free tier, widely available
-            'gemini-1.5-pro',        # Better quality, may need paid tier
-            'gemini-pro',            # Legacy, very widely available
+            'gemini-2.5-flash',      # Gemini 2.5 flash
+            'gemini-2.5-flash-exp',  # Gemini 2.5 flash experimental
+            'gemini-1.5-flash-latest',  # Latest 1.5 flash fallback
         ]
         
         for model_name in models_to_try:
@@ -152,29 +152,29 @@ def _generate_fallback_summary(result: Dict[str, Any]) -> str:
     # Get greedy comparison
     greedy_distance = result.get("greedy_distance", 0)
     
-    summary = f"**Genetic Algorithm Route Optimization**\n\n"
-    summary += f"Optimized route from **{route[0]}** through {len(route)-2} cities to **{route[-1]}**.\n\n"
+    summary = f"Genetic Algorithm Route Optimization\n\n"
+    summary += f"Optimized route from {route[0]} through {len(route)-2} cities to {route[-1]}.\n\n"
     
     if "Evolutionary" in algorithm and iterations > 0:
-        summary += f"**How the Genetic Algorithm Worked:**\n"
-        summary += f"The optimizer explored **{iterations} generations** of route variations using evolutionary principles. "
+        summary += f"How the Genetic Algorithm Worked:\n"
+        summary += f"The optimizer explored {iterations} generations of route variations using evolutionary principles. "
         summary += f"In each generation, it maintained a population of 40 different routes, selecting the best performers "
         summary += f"and combining them through crossover and mutation to create improved offspring. "
         
         if greedy_distance > 0:
             ga_improvement = round((greedy_distance - distance) / greedy_distance * 100, 1)
-            summary += f"This evolutionary approach found a route **{ga_improvement}% better** than the greedy "
+            summary += f"This evolutionary approach found a route {ga_improvement}% better than the greedy "
             summary += f"nearest-neighbor algorithm ({greedy_distance:.1f} km vs {distance:.1f} km), demonstrating "
             summary += f"that exploring multiple solutions beats always picking the closest next city.\n\n"
         else:
             summary += f"\n\n"
         
         if violations == 0 and result.get("priorities"):
-            summary += f"**Priority Handling:** All delivery constraints were **perfectly satisfied** "
+            summary += f"Priority Handling: All delivery constraints were perfectly satisfied "
             summary += f"(🔴 Urgent cities visited first, then 🟡 Medium, then 🟢 Low). "
             summary += f"The GA's fitness function heavily penalized priority violations, ensuring business requirements were met.\n\n"
     
-    summary += f"**Results:**\n"
+    summary += f"Results:\n"
     summary += f"- Total Distance: {distance:.2f} km\n"
     
     if savings > 0:

@@ -146,6 +146,28 @@ curl -X POST "http://localhost:8000/api/optimize" \
 
 ---
 
+## 📸 Screenshots
+
+### Optimization Results - Genetic Algorithm vs Baseline
+![Route Comparison](docs/screenshots/comparison.png)
+*Genetic Algorithm achieved 2.3% improvement (116 km saved) over random baseline route*
+
+### Priority-Based Routing
+![Priority Routing](docs/screenshots/priority_routing.png)
+*AI-generated explanation showing how priorities are respected: 🔴 Urgent cities first, then 🟡 Medium, then 🟢 Low*
+
+### Real-Time Route Recalculation
+![Add/Remove Cities](docs/screenshots/recalc_controls.png)
+*Mid-route updates: Add or remove cities from your current position*
+
+![Update Priorities](docs/screenshots/update_priorities.png)
+*Dynamic priority changes with visual indicators for new cities*
+
+![Updated Route](docs/screenshots/updated_route.png)
+*Instantly recalculated route sequence with optimized path*
+
+---
+
 ## 🧠 Algorithms
 
 ### Genetic Algorithm (Evolutionary Optimizer)

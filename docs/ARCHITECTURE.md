@@ -9,6 +9,13 @@
 
 This system provides intelligent route optimization for logistics companies using AI/ML techniques to minimize travel distance while respecting delivery priorities and constraints.
 
+### Architecture Diagram
+
+![System Architecture](screenshots/architecture.png)
+
+<details>
+<summary>📋 View Mermaid Source Code</summary>
+
 ```mermaid
 flowchart TB
     User[👤 User] --> UI[🎨 Web Interface]
@@ -41,6 +48,8 @@ flowchart TB
     style Cache fill:#8b5cf6,stroke:#7c3aed,stroke-width:3px
     style Optimizer fill:#f59e0b,stroke:#ea580c,stroke-width:3px
 ```
+
+</details>
 
 ---
 

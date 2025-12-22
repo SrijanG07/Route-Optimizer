@@ -15,18 +15,24 @@ DOCUMENTATION:
 - ReDoc: /redoc
 """
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 import time
+import os
+import logging
 
 from models.schemas import OptimizeRequest, OptimizeResponse, ErrorResponse, RecalculateRequest, AddCitiesRequest, RemoveCitiesRequest
 from utils.algorithm import optimize_route
 from utils.recalculation import recalculate_route, add_cities_to_route, remove_cities_from_route, update_priorities, bulk_update_route
 from utils.cities import CITIES, validate_city
 from utils.ai_summary import generate_ai_summary
+
+# Configure logging for debugging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -48,6 +54,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request logging middleware for debugging
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"📥 {request.method} {request.url.path}")
+    if request.method == "POST":
+        # Log body for debugging (only in development)
+        body = await request.body()
+        logger.info(f"📦 Body: {body.decode('utf-8')[:200]}...")  # First 200 chars
+    response = await call_next(request)
+    logger.info(f"📤 Status: {response.status_code}")
+    return response
+
 # Mount static files for frontend
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -65,11 +83,16 @@ async def health_check():
     from utils.distance import get_cache_info, get_distance_method
     
     cache_info = get_cache_info()
+    gemini_key_status = "configured" if os.getenv("GEMINI_API_KEY") else "missing"
     
     return {
         "status": "healthy",
         "timestamp": time.time(),
         "service": "route-optimizer",
+        "environment": {
+            "gemini_api_key": gemini_key_status,
+            "python_version": os.getenv("PYTHON_VERSION", "unknown")
+        },
         "distance_method": get_distance_method(),
         "cache_stats": {
             "hits": cache_info.hits,
@@ -180,7 +203,9 @@ async def optimize_delivery_route(request: OptimizeRequest):
         
         # Debug logging for priorities
         if request.priorities:
-            print(f"🎯 Received priorities: {request.priorities}")
+            logger.info(f"🎯 Received priorities: {request.priorities}")
+        else:
+            logger.info("⚠️ No priorities provided in request")
         
         # Run Genetic Algorithm optimization
         result = optimize_route(
