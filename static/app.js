@@ -18,7 +18,14 @@ let CITIES = {
     "Bhopal": { lat: 23.2599, lng: 77.4126 },
     "Visakhapatnam": { lat: 17.6868, lng: 83.2185 },
     "Patna": { lat: 25.5941, lng: 85.1376 },
-    "Vadodara": { lat: 22.3072, lng: 73.1812 }
+    "Vadodara": { lat: 22.3072, lng: 73.1812 },
+    "Chandigarh": { lat: 30.7333, lng: 76.7794 },
+    "Kochi": { lat: 9.9312, lng: 76.2673 },
+    "Thiruvananthapuram": { lat: 8.5241, lng: 76.9366 },
+    "Coimbatore": { lat: 11.0168, lng: 76.9558 },
+    "Guwahati": { lat: 26.1445, lng: 91.7362 },
+    "Raipur": { lat: 21.2514, lng: 81.6296 },
+    "Ranchi": { lat: 23.3441, lng: 85.3096 },
 };
 
 // ========== State ==========
@@ -149,23 +156,22 @@ function updateSelectedCitiesDisplay() {
         return;
     }
 
-    container.innerHTML = '<h3 style="font-size: 0.9rem; margin: 1rem 0 0.5rem 0; color: #6b7280;">Selected Cities & Priorities:</h3>';
+    container.innerHTML = '<h3>Selected Cities & Priorities:</h3>';
 
     destCities.forEach(city => {
         const priority = cityPriorities[city] || 3;
         const priorityLabel = priority === 1 ? 'Urgent' : priority === 2 ? 'Medium' : 'Low';
-        const priorityColor = priority === 1 ? '#ef4444' : priority === 2 ? '#f59e0b' : '#10b981';
 
         container.innerHTML += `
-            <div class="selected-city-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; margin: 0.25rem 0; background: #f9fafb; border-radius: 8px;">
-                <span style="font-weight: 500;">${city}</span>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <select onchange="updateCityPriority('${city}', this.value)" style="padding: 0.25rem 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; background: white; cursor: pointer;">
+            <div class="selected-city-item">
+                <span>${city}</span>
+                <div>
+                    <select onchange="updateCityPriority('${city}', this.value)">
                         <option value="1" ${priority === 1 ? 'selected' : ''}>🔴 Urgent</option>
                         <option value="2" ${priority === 2 ? 'selected' : ''}>🟡 Medium</option>
                         <option value="3" ${priority === 3 ? 'selected' : ''}>🟢 Low</option>
                     </select>
-                    <button onclick="toggleDestCity('${city}')" style="padding: 0.25rem 0.5rem; background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">✕</button>
+                    <button onclick="toggleDestCity('${city}')">✕</button>
                 </div>
             </div>
         `;
@@ -229,18 +235,152 @@ function updateUI() {
     document.getElementById('nextBtn').classList.toggle('hidden', currentStep === 3);
 }
 
+// ========== Loading Animation Functions ==========
+function showMetroLoader() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        updateLoadingStage(1);
+    }
+}
+
+function hideMetroLoader() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+    }
+}
+
+function updateLoadingStage(stageNumber) {
+    // Update stage indicators
+    for (let i = 1; i <= 3; i++) {
+        const stage = document.getElementById(`stage${i}`);
+        if (!stage) continue;
+
+        stage.classList.remove('active', 'complete');
+        if (i < stageNumber) {
+            stage.classList.add('complete');
+        } else if (i === stageNumber) {
+            stage.classList.add('active');
+        }
+    }
+
+    // Update progress bar
+    const progressFill = document.getElementById('progressFill');
+    if (progressFill) {
+        const percentage = ((stageNumber - 1) / 3) * 100 + 33; // 33%, 66%, 100%
+        progressFill.style.width = `${Math.min(percentage, 100)}%`;
+    }
+}
+
+// ========== Export Functions ==========
+let lastOptimizedResult = null;
+
+function exportToJSON() {
+    if (!lastOptimizedResult) {
+        alert('No route data to export. Please optimize a route first.');
+        return;
+    }
+
+    const exportData = {
+        route: lastOptimizedResult.route,
+        totalDistance: lastOptimizedResult.totalDistance,
+        estimatedHours: lastOptimizedResult.estimatedTime,
+        startCity: lastOptimizedResult.route[0],
+        destinations: lastOptimizedResult.route.slice(1),
+        priorities: collectPriorities(),
+        optimization: {
+            algorithm: lastOptimizedResult.algorithm,
+            iterations: lastOptimizedResult.iterations,
+            calculationTime: lastOptimizedResult.calculationTime,
+            distanceSaved: lastOptimizedResult.baselineDistance - lastOptimizedResult.totalDistance,
+            improvementPercent: lastOptimizedResult.improvement,
+            baselineDistance: lastOptimizedResult.baselineDistance
+        },
+        summary: lastOptimizedResult.summary || '',
+        exportedAt: new Date().toISOString(),
+        exportedBy: 'RouteOptimizer v1.0'
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `route-${exportData.startCity}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('✅ Route exported to JSON');
+}
+
+function exportToCSV() {
+    if (!lastOptimizedResult) {
+        alert('No route data to export. Please optimize a route first.');
+        return;
+    }
+
+    // CSV Headers
+    let csv = 'Stop Number,City,Priority,Distance from Previous (km),Cumulative Distance (km)\n';
+
+    // Add route data
+    let cumulativeDistance = 0;
+    lastOptimizedResult.route.forEach((city, index) => {
+        const priority = cityPriorities[city] || '-';
+        const priorityLabel = priority === 1 ? 'Urgent' : priority === 2 ? 'Medium' : priority === 3 ? 'Low' : 'N/A';
+
+        // Calculate distance from previous city
+        let distanceFromPrevious = 0;
+        if (index > 0) {
+            const prevCity = lastOptimizedResult.route[index - 1];
+            distanceFromPrevious = getDistance(prevCity, city);
+            cumulativeDistance += distanceFromPrevious;
+        }
+
+        csv += `${index + 1},${city},${priorityLabel},${index === 0 ? '-' : distanceFromPrevious.toFixed(2)},${cumulativeDistance.toFixed(2)}\n`;
+    });
+
+    // Add summary
+    csv += `\nSummary\n`;
+    csv += `Total Distance,${lastOptimizedResult.totalDistance} km\n`;
+    csv += `Estimated Time,${lastOptimizedResult.estimatedTime} hours\n`;
+    csv += `Algorithm,${lastOptimizedResult.algorithm}\n`;
+    csv += `Improvement,${lastOptimizedResult.improvement}%\n`;
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `route-${lastOptimizedResult.route[0]}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('✅ Route exported to CSV');
+}
+
 // ========== Optimization ==========
 async function optimizeRoute() {
     const btn = document.getElementById('optimizeBtn');
     const btnText = btn.querySelector('.btn-text');
     const btnLoading = btn.querySelector('.btn-loading');
 
-    // Show loading
+    // Show loading with metro animation
     btn.disabled = true;
     btnText.classList.add('hidden');
     btnLoading.classList.remove('hidden');
+    showMetroLoader();
 
     try {
+        // Stage 1: Analyzing
+        updateLoadingStage(1);
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Stage 2: Optimizing
+        updateLoadingStage(2);
+
         // Call backend API - Always use Genetic Algorithm
         const response = await fetch('/api/optimize', {
             method: 'POST',
@@ -258,6 +398,10 @@ async function optimizeRoute() {
         }
 
         const result = await response.json();
+
+        // Stage 3: Finalizing
+        updateLoadingStage(3);
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // Transform backend response to match frontend expectations
         const transformedResult = {
@@ -283,14 +427,27 @@ async function optimizeRoute() {
             algorithm: result.optimization?.algorithm || 'Nearest Neighbor',
             summary: result.summary
         };
+
+        // Debug logging
+        console.log('🔍 Backend response:', result);
+        console.log('🔍 result.optimization:', result.optimization);
+        console.log('🔍 result.optimization.aiMetrics:', result.optimization?.aiMetrics);
+        console.log('🔍 Iterations from backend:', result.optimization?.aiMetrics?.iterations);
+        console.log('🔍 Transformed iterations:', transformedResult.iterations);
+
+        // Store for export
+        lastOptimizedResult = transformedResult;
+
         displayResults(transformedResult);
 
     } catch (error) {
         console.error(error);
         // Fallback: Use client-side calculation
         const result = calculateRoute();
+        lastOptimizedResult = result;
         displayResults(result);
     } finally {
+        hideMetroLoader();
         btn.disabled = false;
         btnText.classList.remove('hidden');
         btnLoading.classList.add('hidden');
@@ -434,18 +591,27 @@ function displayResults(result) {
     const improvement = result.improvement || 0;
     document.getElementById('improvement').textContent = improvement + '%';
 
+    // Update Before/After Comparison
+    const baselineDist = result.baselineDistance || result.greedyDistance || 0;
+    document.getElementById('baselineDistance').textContent = Math.round(baselineDist) + ' km';
+    document.getElementById('optimizedDistance').textContent = Math.round(result.totalDistance) + ' km';
+    document.getElementById('savingsValue').textContent = `${Math.round(distanceSaved)} km saved`;
+    document.getElementById('savingsPercentage').textContent = `${improvement}% improvement`;
+
     // 🎊 CELEBRATION: If savings > 10%, trigger confetti
     if (improvement > 10) {
         setTimeout(() => {
             createConfetti();
             // Add celebration animation to savings card
-            const savingsCard = document.querySelector('.metric-card.highlight-green');
+            const savingsCard = document.querySelector('.metric-card--success');
             if (savingsCard) {
                 savingsCard.classList.add('celebrate');
                 setTimeout(() => savingsCard.classList.remove('celebrate'), 4500);
             }
         }, 1200);
     }
+
+
 
     // Route visualization with priority badges
     const routePath = document.getElementById('routePath');
@@ -475,30 +641,12 @@ function displayResults(result) {
         `;
     }).join('');
 
-    // Update comparison: Always show 2-way (Baseline vs AI-Enhanced)
-    // Removed "Standard" (greedy) comparison per user request
-    const greedyLabel = document.querySelector('.compare-badge.greedy');
-    const aiLabel = document.querySelectorAll('.compare-badge.ai')[0];
-
-    // Always hide the third comparison item
-    const thirdVs = document.getElementById('thirdVs');
-    const thirdItem = document.getElementById('thirdItem');
-    if (thirdVs) thirdVs.style.display = 'none';
-    if (thirdItem) thirdItem.style.display = 'none';
-
-    // Set labels
-    greedyLabel.innerHTML = '📊 Baseline';
-    aiLabel.innerHTML = '🚀 AI-Enhanced';
-
-    // Set values: Baseline (random) vs AI-Enhanced (GA optimized)
-    const baselineDist = result.baselineDistance || result.greedyDistance || 0;
-    document.getElementById('greedyDist').textContent = Math.round(baselineDist) + ' km';
-    document.getElementById('aiDist').textContent = Math.round(result.totalDistance) + ' km';
-
     // Technical details
     document.getElementById('algoUsed').textContent = result.algorithm || (result.useAI ? 'Evolutionary Optimizer' : 'Nearest Neighbor');
     document.getElementById('calcTime').textContent = result.calculationTime.toFixed(2) + ' ms';
-    document.getElementById('iterations').textContent = result.iterations || '-';
+    document.getElementById('iterations').textContent = result.iterations !== undefined && result.iterations !== null ? result.iterations : '-';
+    document.getElementById('greedyDist').textContent = Math.round(baselineDist) + ' km';
+    document.getElementById('aiDist').textContent = Math.round(result.totalDistance) + ' km';
 
     // Summary text (if available from backend)
     if (result.summary) {
@@ -511,7 +659,13 @@ function displayResults(result) {
 
     // Google Maps link
     const mapsUrl = 'https://www.google.com/maps/dir/' + result.route.map(c => encodeURIComponent(c + ', India')).join('/');
-    document.getElementById('mapsLink').href = mapsUrl;
+    const mapsLinkEl = document.getElementById('mapsLink');
+    if (mapsLinkEl) {
+        mapsLinkEl.href = mapsUrl;
+        console.log('✅ Google Maps URL set:', mapsUrl);
+    } else {
+        console.error('❌ mapsLink element not found!');
+    }
 
     // Populate real-time controls
     populateRealtimeControls(result.route, result.route[0]);
@@ -571,38 +725,223 @@ function populateRealtimeControls(route, start) {
     // Show realtime section
     document.getElementById('realtimeSection').style.display = 'block';
 
-    // Populate add city dropdown (cities NOT in route)
-    const addSelect = document.getElementById('addCitySelect');
-    addSelect.innerHTML = '<option value="">Select city to add...</option>';
-    Object.keys(CITIES).forEach(city => {
-        if (!route.includes(city)) {
-            addSelect.innerHTML += `<option value="${city}">${city}</option>`;
-        }
-    });
-
-    // Populate remove city dropdown (cities in route except start)
-    const removeSelect = document.getElementById('removeCitySelect');
-    removeSelect.innerHTML = '<option value="">Select city to remove...</option>';
-    route.forEach((city, idx) => {
-        if (idx > 0) {  // Skip start city
-            removeSelect.innerHTML += `<option value="${city}">${city}</option>`;
-        }
-    });
-
     // Populate current position dropdown (all cities in route)
     const posSelect = document.getElementById('currentPosSelect');
-    posSelect.innerHTML = '<option value="">Select current position...</option>';
+    posSelect.innerHTML = '<option value="">Select your current position...</option>';
     route.forEach(city => {
         posSelect.innerHTML += `<option value="${city}">${city}</option>`;
     });
-    // Populate priority update dropdown (cities in route except start)
-    const priorityCitySelect = document.getElementById('updatePriorityCity');
-    priorityCitySelect.innerHTML = '<option value="">Select city...</option>';
-    route.forEach((city, idx) => {
-        if (idx > 0) {  // Skip start city
-            priorityCitySelect.innerHTML += `<option value="${city}">${city}</option>`;
+
+    // Remove old event listener and add new one (to avoid duplicates)
+    posSelect.removeEventListener('change', updatePriorityTableForPosition);
+    posSelect.addEventListener('change', updatePriorityTableForPosition);
+
+    // Populate add cities multi-select
+    updateAddCitiesSelect(route);
+
+    // Populate remove cities multi-select
+    updateRemoveCitiesSelect(route);
+
+    // Remove old event listener and add new one for addCitiesMultiSelect (to avoid duplicates)
+    const addSelect = document.getElementById('addCitiesMultiSelect');
+    if (addSelect) {
+        addSelect.removeEventListener('change', updatePriorityTableForPosition);
+        addSelect.addEventListener('change', updatePriorityTableForPosition);
+    }
+}
+
+function updateAddCitiesSelect(route) {
+    const addSelect = document.getElementById('addCitiesMultiSelect');
+    addSelect.innerHTML = '';
+
+    const availableCities = Object.keys(CITIES).filter(city => !route.includes(city));
+
+    if (availableCities.length === 0) {
+        addSelect.innerHTML = '<option disabled>No cities available to add</option>';
+    } else {
+        availableCities.forEach(city => {
+            addSelect.innerHTML += `<option value="${city}">${city}</option>`;
+        });
+    }
+}
+
+function updateRemoveCitiesSelect(route) {
+    const removeSelect = document.getElementById('removeCitiesMultiSelect');
+    removeSelect.innerHTML = '';
+
+    const removableCities = route.slice(1); // Exclude start city
+
+    if (removableCities.length === 0) {
+        removeSelect.innerHTML = '<option disabled>No cities to remove</option>';
+    } else {
+        removableCities.forEach(city => {
+            removeSelect.innerHTML += `<option value="${city}">${city}</option>`;
+        });
+    }
+}
+
+function updatePriorityTableForPosition() {
+    const currentPos = document.getElementById('currentPosSelect').value;
+    const tbody = document.getElementById('priorityTableBody');
+
+    if (!currentPos || !currentRoute) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Select current position to see remaining cities</td></tr>';
+        return;
+    }
+
+    const currentIndex = currentRoute.indexOf(currentPos);
+    const remainingCities = currentRoute.slice(currentIndex + 1);
+
+    // Get cities selected to be added (with null check)
+    const addSelect = document.getElementById('addCitiesMultiSelect');
+    const citiesToAdd = addSelect ? Array.from(addSelect.selectedOptions).map(opt => opt.value) : [];
+
+    // Combine remaining cities + newly selected cities
+    const allCities = [...remainingCities, ...citiesToAdd];
+
+    if (allCities.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No remaining cities in route</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+    allCities.forEach(city => {
+        const currentPriority = cityPriorities[city] || 3;
+        const priorityLabel = currentPriority === 1 ? '🔴 Urgent' : currentPriority === 2 ? '🟡 Medium' : '🟢 Low';
+        const isNewCity = citiesToAdd.includes(city);
+
+        tbody.innerHTML += `
+            <tr ${isNewCity ? 'style="background: rgba(16, 185, 129, 0.1);"' : ''}>
+                <td><strong>${city}</strong> ${isNewCity ? '<span style="font-size: 11px; color: #10b981; font-weight: 600;">• NEW</span>' : ''}</td>
+                <td>${priorityLabel}</td>
+                <td>
+                    <select data-city="${city}" class="priority-update-select">
+                        <option value="1" ${currentPriority === 1 ? 'selected' : ''}>🔴 Urgent</option>
+                        <option value="2" ${currentPriority === 2 ? 'selected' : ''}>🟡 Medium</option>
+                        <option value="3" ${currentPriority === 3 ? 'selected' : ''}>🟢 Low</option>
+                    </select>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function bulkUpdateRoute() {
+    const currentPos = document.getElementById('currentPosSelect').value;
+
+    if (!currentPos) {
+        showRealtimeStatus('❌ Please select your current position first', 'error');
+        return;
+    }
+
+    // Get cities to add (selected options in multi-select)
+    const addSelect = document.getElementById('addCitiesMultiSelect');
+    const citiesToAdd = Array.from(addSelect.selectedOptions).map(opt => opt.value);
+
+    // Get cities to remove (selected options in multi-select)
+    const removeSelect = document.getElementById('removeCitiesMultiSelect');
+    const citiesToRemove = Array.from(removeSelect.selectedOptions).map(opt => opt.value);
+
+    // Get priority updates from table
+    const priorityUpdates = {};
+    const prioritySelects = document.querySelectorAll('.priority-update-select');
+    let hasPriorityChanges = false;
+
+    prioritySelects.forEach(select => {
+        const city = select.getAttribute('data-city');
+        const newPriority = parseInt(select.value);
+        const oldPriority = cityPriorities[city] || 3;
+
+        priorityUpdates[city] = newPriority;
+
+        if (newPriority !== oldPriority) {
+            hasPriorityChanges = true;
         }
     });
+
+    // Check if any changes were made
+    if (citiesToAdd.length === 0 && citiesToRemove.length === 0 && !hasPriorityChanges) {
+        showRealtimeStatus('⚠️ No changes to apply', 'error');
+        return;
+    }
+
+    // Show loading with details
+    const changes = [];
+    if (citiesToAdd.length > 0) changes.push(`+${citiesToAdd.length} cities`);
+    if (citiesToRemove.length > 0) changes.push(`-${citiesToRemove.length} cities`);
+    if (hasPriorityChanges) changes.push('priority updates');
+
+    showRealtimeStatus(`🔄 Applying ${changes.join(', ')}...`, 'loading');
+
+    try {
+        // Step 1: Remove cities first
+        let updatedRoute = currentRoute.slice();
+        if (citiesToRemove.length > 0) {
+            updatedRoute = updatedRoute.filter(city => !citiesToRemove.includes(city));
+        }
+
+        // Step 2: Add new cities to route (after current position)
+        if (citiesToAdd.length > 0) {
+            const currentIndex = updatedRoute.indexOf(currentPos);
+            const beforeCurrent = updatedRoute.slice(0, currentIndex + 1);
+            const afterCurrent = updatedRoute.slice(currentIndex + 1);
+            updatedRoute = [...beforeCurrent, ...citiesToAdd, ...afterCurrent];
+        }
+
+        // Step 3: Update priorities globally
+        Object.assign(cityPriorities, priorityUpdates);
+
+        // Set default priorities for newly added cities
+        citiesToAdd.forEach(city => {
+            if (!(city in cityPriorities)) {
+                cityPriorities[city] = 3; // Default to low
+            }
+        });
+
+        // Step 4: Recalculate route from current position
+        const currentIndex = updatedRoute.indexOf(currentPos);
+        const remainingDests = updatedRoute.slice(currentIndex + 1);
+
+        const remainingPriorities = {};
+        remainingDests.forEach(city => {
+            remainingPriorities[city] = cityPriorities[city] || 3;
+        });
+
+        const response = await fetch('/api/recalculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                current_position: currentPos,
+                remaining_destinations: remainingDests,
+                priorities: remainingPriorities,
+                use_ai: true
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update route');
+        }
+
+        const result = await response.json();
+        updateRouteDisplay(result);
+
+        // Success message with stats
+        const stats = [];
+        if (citiesToAdd.length > 0) stats.push(`Added ${citiesToAdd.join(', ')}`);
+        if (citiesToRemove.length > 0) stats.push(`Removed ${citiesToRemove.join(', ')}`);
+        if (hasPriorityChanges) stats.push('Updated priorities');
+
+        showRealtimeStatus(`✅ Route updated! ${stats.join('. ')}`, 'success');
+
+        // Reset selections
+        addSelect.selectedIndex = -1;
+        removeSelect.selectedIndex = -1;
+
+    } catch (error) {
+        console.error('Bulk update error:', error);
+        showRealtimeStatus('❌ Failed to update route: ' + error.message, 'error');
+    }
 }
 
 async function updateCityPriorityMidRoute() {
@@ -802,19 +1141,21 @@ function updateRouteDisplay(apiResult) {
 
     // Update route visualization
     const routePath = document.getElementById('routePath');
-    routePath.innerHTML = result.route.map((city, idx) => {
-        let nodeClass = 'route-node';
-        if (idx === 0) nodeClass += ' start';
-        if (idx === result.route.length - 1) nodeClass += ' end';
+    if (routePath) {
+        routePath.innerHTML = result.route.map((city, idx) => {
+            let nodeClass = 'route-node';
+            if (idx === 0) nodeClass += ' start';
+            if (idx === result.route.length - 1) nodeClass += ' end';
 
-        return `
-            <div class="${nodeClass}">
-                <span class="node-number">${idx + 1}</span>
-                ${city}
-            </div>
-            ${idx < result.route.length - 1 ? '<span class="route-arrow">→</span>' : ''}
-        `;
-    }).join('');
+            return `
+                <div class="${nodeClass}">
+                    <span class="node-number">${idx + 1}</span>
+                    ${city}
+                </div>
+                ${idx < result.route.length - 1 ? '<span class="route-arrow">→</span>' : ''}
+            `;
+        }).join('');
+    }
 
     // Update ALL metrics with animation
     animateValue('totalDistance', 0, result.totalDistance, 800);
@@ -823,7 +1164,8 @@ function updateRouteDisplay(apiResult) {
     const distanceSaved = result.baselineDistance - result.aiDistance;
     animateValue('distanceSaved', 0, Math.max(0, distanceSaved), 800);
 
-    document.getElementById('improvement').textContent = result.improvement + '%';
+    const improvementEl = document.getElementById('improvement');
+    if (improvementEl) improvementEl.textContent = result.improvement + '%';
 
     // Update 3-way comparison
     const greedyLabel = document.querySelector('.compare-badge.greedy');
@@ -834,45 +1176,59 @@ function updateRouteDisplay(apiResult) {
 
     if (result.useAI && result.greedyDistance > 0) {
         // AI mode: Show 3-way comparison
-        greedyLabel.innerHTML = '📊 Baseline';
-        aiLabel.innerHTML = '⚡ Standard';
+        if (greedyLabel) greedyLabel.innerHTML = '📊 Baseline';
+        if (aiLabel) aiLabel.innerHTML = '⚡ Standard';
         if (aiEnhancedLabel) aiEnhancedLabel.innerHTML = '🚀 AI-Enhanced';
 
         if (thirdVs) thirdVs.style.display = 'flex';
         if (thirdItem) thirdItem.style.display = 'flex';
 
-        document.getElementById('greedyDist').textContent = result.baselineDistance.toFixed(2) + ' km';
-        document.getElementById('aiDist').textContent = result.greedyDistance.toFixed(2) + ' km';
-        const aiEnhancedDist = document.getElementById('aiEnhancedDist');
-        if (aiEnhancedDist) aiEnhancedDist.textContent = result.aiDistance.toFixed(2) + ' km';
+        const greedyDistEl = document.getElementById('greedyDist');
+        const aiDistEl = document.getElementById('aiDist');
+        const aiEnhancedDistEl = document.getElementById('aiEnhancedDist');
+
+        if (greedyDistEl) greedyDistEl.textContent = result.baselineDistance.toFixed(2) + ' km';
+        if (aiDistEl) aiDistEl.textContent = result.greedyDistance.toFixed(2) + ' km';
+        if (aiEnhancedDistEl) aiEnhancedDistEl.textContent = result.aiDistance.toFixed(2) + ' km';
     } else {
         // Greedy mode: Show 2-way comparison
-        greedyLabel.innerHTML = '📊 Baseline';
-        aiLabel.innerHTML = '✅ Optimized';
+        if (greedyLabel) greedyLabel.innerHTML = '📊 Baseline';
+        if (aiLabel) aiLabel.innerHTML = '✅ Optimized';
 
         if (thirdVs) thirdVs.style.display = 'none';
         if (thirdItem) thirdItem.style.display = 'none';
 
-        document.getElementById('greedyDist').textContent = result.baselineDistance.toFixed(2) + ' km';
-        document.getElementById('aiDist').textContent = result.aiDistance.toFixed(2) + ' km';
+        const greedyDistEl = document.getElementById('greedyDist');
+        const aiDistEl = document.getElementById('aiDist');
+
+        if (greedyDistEl) greedyDistEl.textContent = result.baselineDistance.toFixed(2) + ' km';
+        if (aiDistEl) aiDistEl.textContent = result.aiDistance.toFixed(2) + ' km';
     }
 
     // Update technical details
-    document.getElementById('algoUsed').textContent = result.algorithm;
-    document.getElementById('calcTime').textContent = result.calculationTime.toFixed(2) + ' ms';
-    document.getElementById('iterations').textContent = result.iterations || '-';
+    const algoUsedEl = document.getElementById('algoUsed');
+    const calcTimeEl = document.getElementById('calcTime');
+    const iterationsEl = document.getElementById('iterations');
+
+    if (algoUsedEl) algoUsedEl.textContent = result.algorithm;
+    if (calcTimeEl) calcTimeEl.textContent = result.calculationTime.toFixed(2) + ' ms';
+    if (iterationsEl) iterationsEl.textContent = result.iterations || '-';
 
     // Update AI summary if available
     if (result.summary) {
-        document.getElementById('aiSummary').textContent = result.summary;
+        const aiSummaryEl = document.getElementById('aiSummary');
+        if (aiSummaryEl) aiSummaryEl.textContent = result.summary;
     }
 
     // Update controls with new route
     populateRealtimeControls(result.route, result.route[0]);
 
     // Update Google Maps link
-    const mapsUrl = 'https://www.google.com/maps/dir/' + result.route.map(c => encodeURIComponent(c + ', India')).join('/');
-    document.getElementById('mapsLink').href = mapsUrl;
+    const mapsLink = document.getElementById('mapsLink');
+    if (mapsLink) {
+        const mapsUrl = 'https://www.google.com/maps/dir/' + result.route.map(c => encodeURIComponent(c + ', India')).join('/');
+        mapsLink.href = mapsUrl;
+    }
 }
 
 function showRealtimeStatus(message, type) {

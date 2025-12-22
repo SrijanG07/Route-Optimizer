@@ -22,6 +22,14 @@ CITIES = {
     "Visakhapatnam": {"lat": 17.6868, "lon": 83.2185},
     "Patna": {"lat": 25.5941, "lon": 85.1376},
     "Vadodara": {"lat": 22.3072, "lon": 73.1812},
+    # New cities for 20+ performance testing
+    "Chandigarh": {"lat": 30.7333, "lon": 76.7794},
+    "Kochi": {"lat": 9.9312, "lon": 76.2673},
+    "Thiruvananthapuram": {"lat": 8.5241, "lon": 76.9366},
+    "Coimbatore": {"lat": 11.0168, "lon": 76.9558},
+    "Guwahati": {"lat": 26.1445, "lon": 91.7362},
+    "Raipur": {"lat": 21.2514, "lon": 81.6296},
+    "Ranchi": {"lat": 23.3441, "lon": 85.3096},
 }
 
 def get_city_coords(city_name: str) -> tuple[float, float]:

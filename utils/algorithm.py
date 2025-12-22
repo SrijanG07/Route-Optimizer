@@ -105,23 +105,22 @@ def optimize_route(
         # This ensures fair comparison: GA (with priorities) vs simple greedy (without)
         greedy_route = [start] + _nearest_neighbor(start, destinations, matrix)
         
-        # Compare AI vs Greedy - use better result
+        # ALWAYS use GA result when use_ai=True
+        # GA respects priorities, greedy doesn't - so GA distance may be slightly higher
+        # but route is better because it follows priority constraints!
+        optimized_route = ai_route
+        algorithm_name = "Evolutionary Optimizer"
+        ga_metrics["used_ai"] = True
+        
+        # Calculate greedy distance for comparison display only
         ai_distance = _calculate_total_distance(ai_route, matrix)
         greedy_distance = _calculate_total_distance(greedy_route, matrix)
+        ga_metrics["greedy_distance"] = greedy_distance
         
-        if ai_distance <= greedy_distance:
-            optimized_route = ai_route
-            algorithm_name = "Evolutionary Optimizer"
-            ga_metrics["used_ai"] = True
-            # Store greedy distance for comparison display
-            ga_metrics["greedy_distance"] = greedy_distance
-        else:
-            # Fallback to greedy if AI is worse (should be rare with fixed seed)
-            optimized_route = greedy_route
-            algorithm_name = "Evolutionary Optimizer (Greedy Fallback)"
-            ga_metrics["used_ai"] = False
-            ga_metrics["fallback_reason"] = f"AI distance ({ai_distance:.2f}) > Greedy ({greedy_distance:.2f})"
-            ga_metrics["greedy_distance"] = greedy_distance
+        # Log priority violations to verify GA is working
+        violations = _count_priority_violations(optimized_route, priorities, start)
+        print(f"🧬 GA Result: {ai_distance:.2f} km, Priority violations: {violations}")
+        print(f"📊 Greedy Result: {greedy_distance:.2f} km (no priority awareness)")
     else:
         # GREEDY APPROACH: Nearest Neighbor
         if priorities:

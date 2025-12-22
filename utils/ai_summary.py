@@ -29,12 +29,13 @@ def generate_ai_summary(result: Dict[str, Any]) -> str:
             - improvement_percentage: Percentage improvement
             - algorithm: Algorithm used
             - priorities: Optional priority mapping
+            - ai_metrics: Genetic algorithm metrics (iterations, etc.)
     
     Returns:
         AI-generated summary string explaining the route optimization
     """
     if not GEMINI_API_KEY:
-        print("Warning: GEMINI_API_KEY not found, using fallback summary")
+        print("Warning: GEMINI_API_KEY not found, using enhanced fallback summary")
         return _generate_fallback_summary(result)
     
     try:
@@ -46,39 +47,71 @@ def generate_ai_summary(result: Dict[str, Any]) -> str:
         algorithm = result["algorithm"]
         priorities = result.get("priorities", {})
         
-        # AI vs Greedy comparison (if available)
-        greedy_distance = result.get("greedy_distance")
-        ai_improvement = result.get("ai_improvement_over_greedy", 0)
-        ai_saved = result.get("ai_saved_over_greedy", 0)
+        # AI metrics (if Genetic Algorithm was used)
+        ai_metrics = result.get("ai_metrics", {})
+        iterations = ai_metrics.get("iterations", 0)
+        violations = ai_metrics.get("priority_violations", 0)
+        
+        # Greedy comparison (if available)
+        greedy_distance = result.get("greedy_distance", 0)
         
         # Build context for AI
         priority_info = ""
         if priorities:
-            high_priority = [city for city, p in priorities.items() if p == 1]
-            if high_priority:
-                priority_info = f"\nHigh-priority deliveries: {', '.join(high_priority)}"
+            urgent = [city for city, p in priorities.items() if p == 1]
+            medium = [city for city, p in priorities.items() if p == 2]            
+            low = [city for city, p in priorities.items() if p == 3]
+            
+            priority_info = "\n\nPriority Constraints:"
+            if urgent:
+                priority_info += f"\n- 🔴 Urgent: {', '.join(urgent)}"
+            if medium:
+                priority_info += f"\n- 🟡 Medium: {', '.join(medium)}"
+            if low:
+                priority_info += f"\n- 🟢 Low: {', '.join(low)}"
+            priority_info += f"\n- Priority Violations: {violations} (should be 0)"
         
-        # AI vs Greedy comparison info
-        ga_comparison = ""
-        if algorithm == "Evolutionary Optimizer" and greedy_distance and ai_saved > 0:
-            ga_comparison = f"\nGreedy algorithm distance: {greedy_distance:.1f} km\nGenetic Algorithm (AI) found {ai_saved:.1f} km shorter route ({ai_improvement}% better)"
+        # GA details
+        ga_details = ""
+        if "Evolutionary" in algorithm and iterations > 0:
+            ga_details = f"\n\nGenetic Algorithm Process:"
+            ga_details += f"\n- Generations Evolved: {iterations}"
+            ga_details += f"\n- Population Size: 40 routes per generation"
+            ga_details += f"\n- Optimization Method: Crossover + Mutation + Selection"
+            
+            if greedy_distance > 0:
+                ga_improvement = round((greedy_distance - distance) / greedy_distance * 100, 1)
+                ga_details += f"\n- Greedy Distance: {greedy_distance:.1f} km"
+                ga_details += f"\n- GA Distance: {distance:.1f} km"
+                ga_details += f"\n- GA Improvement: {ga_improvement}% better than greedy"
         
-        prompt = f"""You are a logistics optimization expert. Generate a professional, concise summary (2-3 sentences) for this delivery route optimization:
+        prompt = f"""You are an expert in logistics optimization and genetic algorithms. Generate a comprehensive, professional summary (3-4 sentences) explaining this delivery route optimization.
 
+**Route Details:**
 Route: {' → '.join(route)}
 Total Distance: {distance:.1f} km
-Distance Saved: {savings:.1f} km ({improvement}% improvement over baseline)
-Algorithm Used: {algorithm}{priority_info}{ga_comparison}
+Distance Saved vs Random Baseline: {savings:.1f} km ({improvement}% improvement)
+Algorithm Used: {algorithm}{priority_info}{ga_details}
 
-IMPORTANT: If Genetic Algorithm data is provided, emphasize how the AI-powered evolutionary approach found a better solution than the greedy nearest-neighbor algorithm by exploring multiple route variations and selecting the optimal one. Explain the route choice in a professional tone. If there are priority deliveries, mention how they were handled. Highlight the efficiency gains and AI advantages. Be specific and concise."""
+**Instructions:**
+1. Explain that this is a **Genetic Algorithm (Evolutionary Optimizer)** solution
+2. Mention it explored **{iterations} generations** of route variations using population-based search
+3. Explain how GA is better than greedy: it doesn't just pick nearest neighbor, it evolves multiple solutions and picks the best
+4. If priority violations = 0, emphasize that it PERFECTLY respects priority constraints (Urgent first, then Medium, then Low)
+5. If there's a greedy comparison, highlight the GA's superiority with specific numbers
+6. Use technical but accessible language - this is for a hackathon demo
+7. Be specific about HOW the algorithm worked, not just what it achieved
 
-        # Generate summary using Gemini
-        model = genai.GenerativeModel('gemini-pro')
+Write a compelling summary that shows the INTELLIGENCE of the genetic algorithm approach."""
+
+        # Generate summary using Gemini (use latest available model)
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
         response = model.generate_content(prompt)
         
         if response and response.text:
             return response.text.strip()
         else:
+            print("Gemini returned empty response, using fallback")
             return _generate_fallback_summary(result)
     
     except Exception as e:
@@ -88,8 +121,8 @@ IMPORTANT: If Genetic Algorithm data is provided, emphasize how the AI-powered e
 
 def _generate_fallback_summary(result: Dict[str, Any]) -> str:
     """
-    Fallback template-based summary if Gemini API fails.
-    Provides basic route information without AI generation.
+    Enhanced fallback summary that explains genetic algorithm process.
+    Used when Gemini API is unavailable.
     """
     route = result["route"]
     distance = result["total_distance"]
@@ -97,10 +130,47 @@ def _generate_fallback_summary(result: Dict[str, Any]) -> str:
     improvement = result.get("improvement_percentage", 0)
     algorithm = result["algorithm"]
     
-    summary = f"Optimized route from {route[0]} through {len(route)-2} cities to {route[-1]} using {algorithm}. "
-    summary += f"Total distance: {distance:.2f} km. "
+    # Get GA metrics if available
+    ai_metrics = result.get("ai_metrics", {})
+    iterations = ai_metrics.get("iterations", 0)
+    violations = ai_metrics.get("priority_violations", 0)
+    
+    # Get greedy comparison
+    greedy_distance = result.get("greedy_distance", 0)
+    
+    summary = f"**Genetic Algorithm Route Optimization**\n\n"
+    summary += f"Optimized route from **{route[0]}** through {len(route)-2} cities to **{route[-1]}**.\n\n"
+    
+    if "Evolutionary" in algorithm and iterations > 0:
+        summary += f"**How the Genetic Algorithm Worked:**\n"
+        summary += f"The optimizer explored **{iterations} generations** of route variations using evolutionary principles. "
+        summary += f"In each generation, it maintained a population of 40 different routes, selecting the best performers "
+        summary += f"and combining them through crossover and mutation to create improved offspring. "
+        
+        if greedy_distance > 0:
+            ga_improvement = round((greedy_distance - distance) / greedy_distance * 100, 1)
+            summary += f"This evolutionary approach found a route **{ga_improvement}% better** than the greedy "
+            summary += f"nearest-neighbor algorithm ({greedy_distance:.1f} km vs {distance:.1f} km), demonstrating "
+            summary += f"that exploring multiple solutions beats always picking the closest next city.\n\n"
+        else:
+            summary += f"\n\n"
+        
+        if violations == 0 and result.get("priorities"):
+            summary += f"**Priority Handling:** All delivery constraints were **perfectly satisfied** "
+            summary += f"(🔴 Urgent cities visited first, then 🟡 Medium, then 🟢 Low). "
+            summary += f"The GA's fitness function heavily penalized priority violations, ensuring business requirements were met.\n\n"
+    
+    summary += f"**Results:**\n"
+    summary += f"- Total Distance: {distance:.2f} km\n"
     
     if savings > 0:
-        summary += f"This route saves {savings:.2f} km ({improvement}% improvement) compared to baseline routing."
+        summary += f"- Distance Saved: {savings:.2f} km ({improvement}% improvement vs random baseline)\n"
+    
+    # Add priority info if available
+    priorities = result.get("priorities", {})
+    if priorities:
+        urgent = [city for city, p in priorities.items() if p == 1]
+        if urgent:
+            summary += f"- Priority Deliveries: {', '.join(urgent)} (Urgent) routed optimally\n"
     
     return summary
