@@ -1,7 +1,7 @@
 # System Architecture
 
-> **AI-Powered Multi-City Route Optimization System**  
-> Advanced logistics optimization using Genetic Algorithms and Google Gemini AI
+> **RouteOptimizer - Intelligent Multi-City Route Optimization**  
+> Advanced logistics optimization using Genetic Algorithms (evolutionary computation) and Google Gemini LLM for natural language insights
 
 ---
 
@@ -11,74 +11,35 @@ This system provides intelligent route optimization for logistics companies usin
 
 ```mermaid
 flowchart TB
-    subgraph "Frontend Layer"
-        UI[Web UI - React-like JS]
-        Wizard[3-Step Wizard]
-        RealTime[Real-Time Controls]
-    end
+    User[👤 User] --> UI[🎨 Web Interface]
     
-    subgraph "API Layer - FastAPI"
-        Optimize[POST /api/optimize]
-        Recalc[POST /api/recalculate]
-        AddCity[POST /api/add-cities]
-        RemCity[POST /api/remove-cities]
-        GetCities[GET /api/cities]
-    end
+    UI --> API[⚡ FastAPI Server]
     
-    subgraph "Optimization Engine"
-        Greedy[Nearest Neighbor - Greedy]
-        GA[Genetic Algorithm - AI]
-        TwoOpt[2-Opt Local Search]
-        Priority[Priority Handler]
-    end
+    API --> Optimizer{🧬 Optimization<br/>Engine}
     
-    subgraph "Distance Layer"
-        Maps[OpenRouteService API]
-        Cache[LRU Cache - 2000 entries]
-        Geodesic[Geopy Fallback]
-        Haversine[Haversine Formula]
-    end
+    Optimizer --> |Baseline| Greedy[Greedy Algorithm]
+    Optimizer --> |AI-Enhanced| GA[Genetic Algorithm]
     
-    subgraph "AI Layer"
-        Gemini[Google Gemini LLM]
-        Summary[Route Summary Generator]
-    end
+    GA --> Distance[📏 Distance Calculator]
+    Greedy --> Distance
     
-    subgraph "Data Layer"
-        Cities[18 Hardcoded Cities]
-        Matrix[Distance Matrix Builder]
-    end
+    Distance --> Cache{💾 Cache Hit?}
+    Cache --> |Yes| Return1[Return Cached]
+    Cache --> |No| Geodesic[🌍 Geodesic Distance]
     
-    UI --> |User Input| Wizard
-    Wizard --> |API Request| Optimize
-    RealTime --> |Update Request| Recalc
+    GA --> AI[🤖 Gemini LLM]
+    AI --> Summary[Generate Summary]
     
-    Optimize --> |Route Calculation| Greedy
-    Optimize --> |Route Calculation| GA
-    Recalc --> |Mid-Route Optimize| GA
-    AddCity --> |Reoptimize| Greedy
+    Summary --> Response[📊 Results]
+    Return1 --> Response
+    Geodesic --> Response
     
-    Greedy --> |Need Distances| Matrix
-    GA --> |Need Distances| Matrix
-    GA --> |Priority Constraints| Priority
-    GA --> |Improvement| TwoOpt
+    Response --> UI
     
-    Matrix --> |API Call| Maps
-    Maps --> |Fallback| Geodesic
-    Geodesic --> |Final Fallback| Haversine
-    Maps --> |Cache| Cache
-    
-    GA --> |Generate Summary| Gemini
-    Gemini --> |Natural Language| Summary
-    
-    Matrix --> |City Coords| Cities
-    
-    Summary --> |Response| UI
-    
-    style GA fill:#4ade80
-    style Gemini fill:#60a5fa
-    style Maps fill:#f59e0b
-    style Cache fill:#8b5cf6
+    style GA fill:#4ade80,stroke:#22c55e,stroke-width:3px
+    style AI fill:#60a5fa,stroke:#3b82f6,stroke-width:3px
+    style Cache fill:#8b5cf6,stroke:#7c3aed,stroke-width:3px
+    style Optimizer fill:#f59e0b,stroke:#ea580c,stroke-width:3px
 ```
 
 ---
@@ -86,18 +47,30 @@ flowchart TB
 ## Component Details
 
 ### 1. Frontend Layer
-**Files:** `static/index.html`, `static/app.js`, `static/styles.css`
+**Files:** `static/index.html`, `static/app.js`, `static/styles.css`, `static/design-tokens.css`, `static/animations.css`, `static/realtime.css`
 
 **Responsibilities:**
 - 3-step wizard for route input (Start City → Destinations → Optimize)
-- Real-time route recalculation UI
-- Results visualization with metrics
-- Google Maps integration
+- Real-time route recalculation UI with bulk updates
+- Results visualization with comprehensive metrics and comparisons
+- Modern, responsive design with gradient branding and custom route icon
+- Performance-optimized animations and transitions
 
 **Tech Stack:**
-- Vanilla JavaScript (859 lines)
-- Modern CSS with gradients and animations
-- Responsive design
+- Vanilla JavaScript ES6+ (1,200+ lines in `app.js`)
+- Modern CSS with design token system (`design-tokens.css`)
+- Custom SVG icons (route/path visualization)
+- Glassmorphism effects and gradient accents
+- Responsive grid layouts with mobile-first design
+- Dark theme with blue-cyan color palette
+
+**Key UI Features:**
+- Interactive city selection with search and filtering
+- Priority-based color coding (RED=Urgent, YELLOW=Medium, GREEN=Low)
+- Real-time metric updates and 3-way route comparison
+- Google Maps integration with one-click navigation
+- Export functionality (JSON, CSV)
+- Loading states with animated progress indicators
 
 ---
 
@@ -428,5 +401,6 @@ flowchart LR
 ---
 
 **Last Updated:** December 22, 2025  
-**Author:** Route Optimizer Team  
+**Project:** RouteOptimizer - Intelligent Multi-City Route Optimization  
+**Repository:** [SrijanG07/Route-Optimizer](https://github.com/SrijanG07/Route-Optimizer)  
 **License:** MIT

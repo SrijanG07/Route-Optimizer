@@ -49,6 +49,10 @@ Thumbs.db
 # Test outputs and temporary files
 test_output.txt
 benchmark_results_*.txt
+performance_report.csv
+debug_*.html
+test_*.py
+benchmark_results_*.txt
 
 # Antigravity artifacts (for development only)
 .gemini/
