@@ -11,7 +11,6 @@
 
 ## 🎥 Demo & Live Application
 
-- **📺 Live Demo Video**: [Watch on YouTube](YOUR_YOUTUBE_LINK_HERE) *(Add your video link)*
 - **🌐 Deployed Application**: [https://route-optimizer-xd92.onrender.com](https://route-optimizer-xd92.onrender.com)
   - ⚠️ *Note: Hosted on Render free tier - First load may take 30-50 seconds to wake up from sleep*
 - **💻 Source Code**: [GitHub Repository](https://github.com/SrijanG07/Route-Optimizer)
