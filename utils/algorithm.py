@@ -43,7 +43,9 @@ def optimize_route(
     start: str, 
     destinations: List[str], 
     priorities: Optional[Dict[str, int]] = None,
-    use_ai: bool = False
+    use_ai: bool = False,
+    *,
+    seed: Optional[int] = None
 ) -> Dict:
     """
     Task 5 + Task 6: AI-Enhanced Route Optimization.
@@ -68,12 +70,9 @@ def optimize_route(
     Returns:
         Dict with optimized route, distances, savings, performance metrics
     """
-    start_time = time.time()
-    
-    # Use time-based seed for exploration (allows different results per run)
-    # But use same seed within single optimization for consistency
-    random.seed(int(time.time() * 1000) % 10000)
-    
+    start_time = time.perf_counter()
+    rng = random.Random(seed)
+
     # ===== STEP 1: PREPARE DATA =====
     # Build distance matrix for O(1) distance lookups
     all_cities = [start] + destinations
@@ -82,7 +81,7 @@ def optimize_route(
     # ===== STEP 2: BASELINE (for comparison) =====
     # Calculate distance for RANDOM ORDER baseline (fair comparison)
     baseline_destinations = destinations.copy()
-    random.shuffle(baseline_destinations)
+    rng.shuffle(baseline_destinations)
     baseline_route = [start] + baseline_destinations
     baseline_dist = _calculate_total_distance(baseline_route, matrix)
     
@@ -97,30 +96,13 @@ def optimize_route(
             population_size=_AI_CONFIG["population_size"],
             generations=_AI_CONFIG["generations"],
             mutation_rate=_AI_CONFIG["mutation_rate"],
+            rng=rng,
             priority_penalty=_AI_CONFIG["priority_penalty"]
         )
         
-        # CRITICAL: Calculate greedy baseline for comparison
-        # Greedy ALWAYS uses simple nearest neighbor (no priority grouping)
-        # This ensures fair comparison: GA (with priorities) vs simple greedy (without)
-        greedy_route = [start] + _nearest_neighbor(start, destinations, matrix)
-        
-        # ALWAYS use GA result when use_ai=True
-        # GA respects priorities, greedy doesn't - so GA distance may be slightly higher
-        # but route is better because it follows priority constraints!
         optimized_route = ai_route
         algorithm_name = "Evolutionary Optimizer"
         ga_metrics["used_ai"] = True
-        
-        # Calculate greedy distance for comparison display only
-        ai_distance = _calculate_total_distance(ai_route, matrix)
-        greedy_distance = _calculate_total_distance(greedy_route, matrix)
-        ga_metrics["greedy_distance"] = greedy_distance
-        
-        # Log priority violations to verify GA is working
-        violations = _count_priority_violations(optimized_route, priorities, start)
-        print(f"🧬 GA Result: {ai_distance:.2f} km, Priority violations: {violations}")
-        print(f"📊 Greedy Result: {greedy_distance:.2f} km (no priority awareness)")
     else:
         # GREEDY APPROACH: Nearest Neighbor
         if priorities:
@@ -148,7 +130,7 @@ def optimize_route(
     savings = round(baseline_dist - optimized_dist, 2)
     improvement_pct = round((savings / baseline_dist) * 100, 1) if baseline_dist > 0 else 0
     
-    exec_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+    exec_time = (time.perf_counter() - start_time) * 1000  # Convert to milliseconds
     
     result = {
         "route": optimized_route,
@@ -324,6 +306,7 @@ def _ai_optimize(
         (best_route, metrics_dict)
     """
     return _genetic_algorithm(
+        rng=random.Random(),
         start=start,
         destinations=destinations,
         matrix=matrix,
@@ -343,7 +326,8 @@ def _genetic_algorithm(
     population_size: int,
     generations: int,
     mutation_rate: float,
-    priority_penalty: float
+    priority_penalty: float,
+    rng: random.Random
 ) -> Tuple[List[str], Dict]:
     """
     Internal optimization using iterative population search.
@@ -359,7 +343,7 @@ def _genetic_algorithm(
         (best_route, metrics_dict)
     """
     # Initialize population with priority-aware routes if priorities exist
-    population = _create_initial_population(start, destinations, population_size, priorities)
+    population = _create_initial_population(start, destinations, population_size, priorities, rng)
     
     initial_fitness = _calculate_fitness(population[0], matrix, priorities, priority_penalty, start)
     best_route = None
@@ -397,15 +381,15 @@ def _genetic_algorithm(
         # Crossover + Mutation to fill population
         while len(new_population) < population_size:
             # Select two parents randomly from survivors
-            parent1 = random.choice(survivors)
-            parent2 = random.choice(survivors)
+            parent1 = rng.choice(survivors)
+            parent2 = rng.choice(survivors)
             
             # Crossover: Create child route
-            child = _crossover(parent1, parent2, start)
+            child = _crossover(parent1, parent2, start, rng)
             
             # Mutation: Random swap with probability
-            if random.random() < mutation_rate:
-                child = _mutate(child, start)
+            if rng.random() < mutation_rate:
+                child = _mutate(child, start, rng)
             
             new_population.append(child)
         
@@ -426,7 +410,7 @@ def _genetic_algorithm(
     return best_route, metrics
 
 
-def _create_initial_population(start: str, destinations: List[str], size: int, priorities: Optional[Dict[str, int]] = None) -> List[List[str]]:
+def _create_initial_population(start: str, destinations: List[str], size: int, priorities: Optional[Dict[str, int]], rng: random.Random) -> List[List[str]]:
     """
     Create initial population with mix of random and priority-aware routes.
     If priorities exist, 50% of population respects priority order.
@@ -446,7 +430,7 @@ def _create_initial_population(start: str, destinations: List[str], size: int, p
             for priority_level in [1, 2, 3]:
                 if priority_level in priority_groups:
                     group = priority_groups[priority_level].copy()
-                    random.shuffle(group)
+                    rng.shuffle(group)
                     route.extend(group)
             
             population.append(route)
@@ -454,7 +438,7 @@ def _create_initial_population(start: str, destinations: List[str], size: int, p
     # Fill rest with random routes
     while len(population) < size:
         shuffled = destinations.copy()
-        random.shuffle(shuffled)
+        rng.shuffle(shuffled)
         route = [start] + shuffled
         population.append(route)
     
@@ -520,7 +504,7 @@ def _count_priority_violations(route: List[str], priorities: Optional[Dict[str, 
     return violations
 
 
-def _crossover(parent1: List[str], parent2: List[str], start: str) -> List[str]:
+def _crossover(parent1: List[str], parent2: List[str], start: str, rng: random.Random) -> List[str]:
     """
     Order Crossover (OX): Combine two parent routes to create child.
     
@@ -541,8 +525,8 @@ def _crossover(parent1: List[str], parent2: List[str], start: str) -> List[str]:
     
     # Select random segment from parent1
     size = len(p1_genes)
-    start_idx = random.randint(0, size - 1)
-    end_idx = random.randint(start_idx, size)
+    start_idx = rng.randint(0, size - 1)
+    end_idx = rng.randint(start_idx, size)
     
     # Create child with segment from parent1
     child_genes = [None] * size
@@ -559,7 +543,7 @@ def _crossover(parent1: List[str], parent2: List[str], start: str) -> List[str]:
     return [start] + child_genes
 
 
-def _mutate(route: List[str], start: str) -> List[str]:
+def _mutate(route: List[str], start: str, rng: random.Random) -> List[str]:
     """
     Mutation: Random swap of two cities.
     Introduces diversity to avoid local optima.
@@ -573,8 +557,8 @@ def _mutate(route: List[str], start: str) -> List[str]:
     
     # Don't mutate start city
     if len(mutated) > 3:
-        idx1 = random.randint(1, len(mutated) - 1)
-        idx2 = random.randint(1, len(mutated) - 1)
+        idx1 = rng.randint(1, len(mutated) - 1)
+        idx2 = rng.randint(1, len(mutated) - 1)
         
         # Swap
         mutated[idx1], mutated[idx2] = mutated[idx2], mutated[idx1]

@@ -1,7 +1,4 @@
 """Quick distance check"""
-import sys
-sys.path.insert(0, 'c:\\Users\\srija\\Downloads\\hackathon')
-
 from utils.distance import calculate_distance
 
 # Routes from user
